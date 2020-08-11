@@ -1,0 +1,12 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+.idea
+DATASETS
+MODELS
+logs
+*.pb
+*.ckpt*
+checkpoint
+saved_model
+train/weights
+
