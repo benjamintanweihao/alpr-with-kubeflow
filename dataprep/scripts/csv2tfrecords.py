@@ -6,12 +6,25 @@ python csv2tfrecords.py --label=<LABEL> --csv_input=<PATH_TO_ANNOTATIONS_FOLDER>
 
 # Create test data:
 python csv2tfrecords.py --label=<LABEL> --csv_input=<PATH_TO_ANNOTATIONS_FOLDER>/test_labels.csv  --output_path=<PATH_TO_ANNOTATIONS_FOLDER>/test.record
+
+eg:
+
+python csv2tfrecords.py  --split_name=train --tfrecord_name=indian --label=licence --csv_input=../../DATASETS/indian/train/annotations/train_labels.csv --output_path ../../TFRECORDS/ --img_path=../../DATASETS/indian/train/images/
+python csv2tfrecords.py  --split_name=test --tfrecord_name=indian --label=licence --csv_input=../../DATASETS/indian/test/annotations/test_labels.csv --output_path ../../TFRECORDS/ --img_path=../../DATASETS/indian/test/images/
+
+python csv2tfrecords.py  --split_name=train --tfrecord_name=romanian --label=license-plate --csv_input=../../DATASETS/romanian/train/annotations/train_labels.csv --output_path ../../TFRECORDS/ --img_path=../../DATASETS/romanian/train/images/
+python csv2tfrecords.py  --split_name=test --tfrecord_name=romanian --label=license-plate --csv_input=../../DATASETS/romanian/test/annotations/test_labels.csv --output_path ../../TFRECORDS/ --img_path=../../DATASETS/romanian/test/images/
+
+python csv2tfrecords.py  --split_name=train --tfrecord_name=voc --label=licenseplate --csv_input=../../DATASETS/voc/train/annotations/train_labels.csv --output_path ../../TFRECORDS/ --img_path=../../DATASETS/voc/train/images/
+python csv2tfrecords.py  --split_name=test --tfrecord_name=voc --label=licenseplate --csv_input=../../DATASETS/voc/test/annotations/test_labels.csv --output_path ../../TFRECORDS/ --img_path=../../DATASETS/voc/test/images/
+
 """
 
 from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import math
 import os
 import io
 import pandas as pd
@@ -29,11 +42,13 @@ flags.DEFINE_string('csv_input', '', 'Path to the CSV input')
 flags.DEFINE_string('output_path', '', 'Path to output TFRecord')
 flags.DEFINE_string('label', 'license-plate', 'Name of class label')
 flags.DEFINE_string('img_path', '', 'Path to images')
+flags.DEFINE_string('split_name', '', 'train or test')
+flags.DEFINE_string('tfrecord_name', '', 'name of TFRecord')
 FLAGS = flags.FLAGS
 
 
 def class_text_to_int(row_label):
-    if row_label == FLAGS.label:  # 'license-plate':
+    if row_label == FLAGS.label:  # 'license-plate | licenseplate | licence':
         return 1
     else:
         raise NotImplementedError
@@ -87,17 +102,39 @@ def create_tf_example(group, path):
     return tf_example
 
 
+def get_dataset_filename(dataset_dir, split_name, shard_id, tfrecord_filename, num_shards):
+    output_filename = '%s_%s_%05d-of-%05d.tfrecord' % (
+        tfrecord_filename, split_name, shard_id, num_shards)
+    return os.path.join(dataset_dir, output_filename)
+
+
 def main(_):
-    writer = tf.io.TFRecordWriter(FLAGS.output_path)
     path = os.path.join(os.getcwd(), FLAGS.img_path)
     examples = pd.read_csv(FLAGS.csv_input)
     grouped = split(examples, 'filename')
-    for group in grouped:
-        tf_example = create_tf_example(group, path)
-        writer.write(tf_example.SerializeToString())
 
-    writer.close()
     output_path = os.path.join(os.getcwd(), FLAGS.output_path)
+
+    num_shards = 3
+    split_name = FLAGS.split_name
+    tfrecord_filename = FLAGS.tfrecord_name
+
+    print(tfrecord_filename)
+
+    num_per_shard = int(math.ceil(len(grouped) / float(num_shards)))
+
+    with tf.Graph().as_default():
+        with tf.Session() as sess:
+            for shard_id in range(num_shards):
+                output_filename = get_dataset_filename(output_path, split_name, shard_id, tfrecord_filename, num_shards)
+
+                with tf.io.TFRecordWriter(output_filename) as writer:
+                    start_idx = shard_id * num_per_shard
+                    end_idx = min((shard_id + 1) * num_per_shard, len(grouped))
+                    for i in range(start_idx, end_idx):
+                        tf_example = create_tf_example(grouped[i], path)
+                        writer.write(tf_example.SerializeToString())
+
     print('Successfully created the TFRecords: {}'.format(output_path))
 
 

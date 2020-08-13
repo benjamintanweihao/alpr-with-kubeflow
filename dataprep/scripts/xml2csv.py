@@ -1,10 +1,25 @@
 """
 Usage:
 # Create train data:
-python xml2csv.py -i [PATH_TO_IMAGES_FOLDER]/train -o [PATH_TO_ANNOTATIONS_FOLDER]/train_labels.csv
+python xml2csv.py -i [PATH_TO_ANNOTATIONS_FOLDER]/train -o [PATH_TO_ANNOTATIONS_FOLDER]/train_labels.csv
+
+
 
 # Create test data:
-python xml2csv.py -i [PATH_TO_IMAGES_FOLDER]/test -o [PATH_TO_ANNOTATIONS_FOLDER]/test_labels.csv
+python xml2csv.py -i [PATH_TO_ANNOTATIONS_FOLDER]/test -o [PATH_TO_ANNOTATIONS_FOLDER]/test_labels.csv
+
+
+eg:
+
+python xml2csv.py -i ../../DATASETS/indian/train/annotations -o ../../DATASETS/indian/train/annotations/train_labels.csv
+python xml2csv.py -i ../../DATASETS/indian/test/annotations -o ../../DATASETS/indian/test/annotations/test_labels.csv
+
+python xml2csv.py -i ../../DATASETS/romanian/train/annotations -o ../../DATASETS/romanian/train/annotations/train_labels.csv
+python xml2csv.py -i ../../DATASETS/romanian/test/annotations -o ../../DATASETS/romanian/test/annotations/test_labels.csv
+
+python xml2csv.py -i ../../DATASETS/voc/train/annotations -o ../../DATASETS/voc/train/annotations/train_labels.csv
+python xml2csv.py -i ../../DATASETS/voc/test/annotations -o ../../DATASETS/voc/test/annotations/test_labels.csv
+
 """
 
 import os
@@ -33,14 +48,16 @@ def xml_to_csv(path):
         tree = ET.parse(xml_file)
         root = tree.getroot()
         for member in root.findall('object'):
+            bndbox = member.find('bndbox')
+
             value = (root.find('filename').text,
                      int(root.find('size')[0].text),
                      int(root.find('size')[1].text),
-                     member[0].text,
-                     int(float(member[4][0].text)),
-                     int(float(member[4][1].text)),
-                     int(float(member[4][2].text)),
-                     int(float(member[4][3].text)))
+                     member.find('name').text,
+                     int(float(bndbox[0].text)),
+                     int(float(bndbox[1].text)),
+                     int(float(bndbox[2].text)),
+                     int(float(bndbox[3].text)))
             xml_list.append(value)
     column_name = ['filename', 'width', 'height',
                    'class', 'xmin', 'ymin', 'xmax', 'ymax']

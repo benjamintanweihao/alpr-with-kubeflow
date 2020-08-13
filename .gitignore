@@ -3,6 +3,7 @@ __pycache__/
 .idea
 DATASETS
 MODELS
+TFRECORDS
 logs
 *.pb
 *.ckpt*
