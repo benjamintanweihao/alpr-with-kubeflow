@@ -4,10 +4,12 @@ __pycache__/
 DATASETS
 MODELS
 TFRECORDS
-logs
+SAVED_MODEL
+LOGS
 *.pb
 *.ckpt*
 checkpoint
 saved_model
 train/weights
+results
 

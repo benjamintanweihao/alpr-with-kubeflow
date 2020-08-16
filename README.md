@@ -94,7 +94,7 @@ mkdir conda
 conda env export > conda/environment.yml
 ```
 
-# Datasets
+## Datasets
 
 Create a `DATASETS` folder under the root directory:
 
@@ -104,7 +104,7 @@ mkdir DATASETS
 
 These are the datasets used:
 
-## Romanian License Plate Dataset
+### Romanian License Plate Dataset
 
 git clone https://github.com/RobertLucian/license-plate-dataset DATASETS/romanian-license-plate-dataset
 
@@ -116,11 +116,11 @@ git clone https://github.com/RobertLucian/license-plate-dataset DATASETS/romania
 ```
 item {
     id: 1
-    name: 'numberplate'
+    name: 'license-plate'
 }
 ```
 
-### Create TFRecords
+#### Create TFRecords
 
 ```
 git clone https://github.com/RobertLucian/license-plate-dataset.git romanian-license-plate-dataset
@@ -146,7 +146,7 @@ python csv2tfrecords.py --label=license-plate --csv_input=../../DATASETS/romania
 5.  num_steps is set to 20000 which is sufficient for our use case
 ```
 
-# Running Training
+## Running Training
 
 ```
 cd alpr-with-kubeflow/train/scripts
@@ -154,12 +154,15 @@ cd alpr-with-kubeflow/train/scripts
 
 Download the models from the Model Zoo. Each model in the tar.gz file contains the `pipeline.config` file which we modify for our needs.
 
-```bash
-python3 train.py --train_dir=../logs --pipeline_config_path=../model_configs/ssd_inception_v2_coco.config 
+Pick the model you want:
 
+```bash
+python model_main.py --model_dir ../../LOGS/ --pipeline_config_path ../model_configs/ssd_inception_v2_coco.config
 ```
 
-python3 model_main.py --model_dir=../logs --pipeline_config_path=../model_configs/ssd_inception_v2_coco.config 
+```bash
+python model_main.py --model_dir ../../LOGS/ --pipeline_config_path ../model_configs/ssd_mobilenet_v1_fpn_shared_box_predictor_640x640_coco14_sync_2018_07_03.config 
+```
 
 ### Observing via Tensorboard
 
@@ -167,13 +170,16 @@ python3 model_main.py --model_dir=../logs --pipeline_config_path=../model_config
 (alpr) benjamintan@cerberus:~/workspace/alpr-with-kubeflow/train$ tensorboard --logdir=logs
 ```
 
-# Export Model
+## Export Model
 
 ```bash
-python ../../MODELS/research/object_detection/export_inference_graph.py --input_type image_tensor --pipeline_config_path ../model_configs/ssd_inception_v2_coco.config --trained_checkpoint_prefix ../logs/model.ckpt-20000 --output_directory ..
+(alpr) ~/workspace/alpr-with-kubeflow$ python MODELS/research/object_detection/export_inference_graph.py --input_type image_tensor --pipeline_config_path train/model_configs/ssd_inception_v2_coco.config --trained_checkpoint_prefix LOGS/model.ckpt-20000 --output_directory SAVED_MODEL
 ``` 
 
-Model is saved to `train/saved_model`
+Model is saved to `SAVED_MODEL/saved_model`
 
+## Inference
 
-
+```
+python inference/scripts/detect.py --frozen_graph=SAVED_MODEL/frozen_inference_graph.pb --input_dir=DATASETS/indian/images/
+```

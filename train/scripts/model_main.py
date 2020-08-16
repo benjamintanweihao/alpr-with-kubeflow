@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Binary to run train and evaluation on object detection model."""
+"""Binary to run train and evaluation on object detection model.
+
+Eg:
+
+python model_main.py --model_dir ../../LOGS/ --pipeline_config_path ../model_configs/ssd_inception_v2_coco.config
+"""
 
 from __future__ import absolute_import
 from __future__ import division

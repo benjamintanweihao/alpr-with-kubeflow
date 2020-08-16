@@ -1,0 +1,10 @@
+# DOCKER_BUILDKIT=1 docker build -t benjamintanweihao/alpr-vc env -f env/docker/Dockerfile.vc --build-arg user_id=`id -u` --build-arg
+
+ARG user_id
+
+FROM python:alpine
+RUN addgroup -S -g 1000 dev && adduser -S -u 1000 -G dev dev
+RUN apk add --update build-base python3 python3-dev zlib-dev jpeg-dev linux-headers git bash openssh
+USER builder
+RUN pip3 install --no-cache-dir --upgrade pip
+ENV PATH $PATH:/home/builder/.local/bin/

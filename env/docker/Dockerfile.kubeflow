@@ -1,0 +1,79 @@
+# example on how to build docker:
+# DOCKER_BUILDKIT=1 docker build -t benjamintanweihao/alpr-kubeflow env -f env/docker/Dockerfile.kubeflow --build-arg user_id=`id -u`
+
+# example on tagging and pushing to a (local) repository
+# docker tag benjamintanweihao/alpr-kubeflow:latest  localhost:32000/benjamintanweihao/alpr-kubeflow:latest
+# docker push localhost:32000/benjamintanweihao/alpr-kubeflow:latest
+
+# example on how to run:
+# docker run -it benjamintanweihao/alpr-kubeflow /bin/bash
+
+FROM nvcr.io/nvidia/tensorflow:19.11-tf1-py3
+LABEL MAINTAINER "Benjamin Tan <benjamintanweihao AT gmail.com>"
+SHELL ["/bin/bash", "-c"]
+
+# Set the locale
+
+RUN  echo 'Acquire {http::Pipeline-Depth "0";};' >> /etc/apt/apt.conf
+
+# Set the locale
+RUN DEBIAN_FRONTEND="noninteractive"
+RUN apt-get update  && apt-get -y install --no-install-recommends locales && locale-gen en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+
+RUN apt-get install -y --no-install-recommends \
+    wget \
+    git \
+    python3-pip \
+    openssh-client \
+    python3-setuptools \
+    nfs-common && \
+    rm -rf /var/lib/apt/lists/*
+
+# install conda
+WORKDIR /tmp
+RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-4.7.12-Linux-x86_64.sh -O ~/miniconda.sh && \
+    /bin/bash ~/miniconda.sh -b -p /opt/conda && \
+    rm ~/miniconda.sh && \
+    ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
+    echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc
+
+# build conda environments
+COPY conda/environment.yml /tmp/alpr/conda/
+RUN /opt/conda/bin/conda update -n base -c defaults conda
+RUN /opt/conda/bin/conda env create -f /tmp/alpr/conda/environment.yml
+RUN /opt/conda/bin/conda clean -afy
+
+# cleanup
+RUN rm -rf /workspace/{nvidia,docker}-examples && rm -rf /usr/local/nvidia-examples && \
+    rm /tmp/alpr/conda/environment.yml
+
+# switch to the conda environment
+RUN echo "conda activate alpr" >> ~/.bashrc
+ENV PATH /opt/conda/envs/alpr/bin:$PATH
+RUN /opt/conda/bin/activate alpr
+
+# make /bin/sh symlink to bash instead of dash:
+RUN echo "dash dash/sh boolean false" | debconf-set-selections && \
+    DEBIAN_FRONTEND=noninteractive dpkg-reconfigure dash
+
+RUN apt-get update && apt-get -y install sudo
+
+# add a user so as not to run as root
+ARG user_id
+RUN useradd -ms /bin/bash -u ${user_id} -g root -G sudo -p $(openssl passwd -1 password) dev
+RUN chown dev /home/dev
+
+WORKDIR /workspace/alpr
+ENV PYTHONPATH /workspace/alpr:$PYTHONPATH
+
+# setup .bashrc properly
+RUN cp /root/.bashrc /home/alpr
+COPY docker/.bashrc /tmp
+RUN cat /tmp/.bashrc >> /home/alpr/.bashrc
+RUN rm /tmp/.bashrc
+
+# switch to default user
+USER dev
