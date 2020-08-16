@@ -7,6 +7,10 @@ flags.DEFINE_string('frozen_graph', '', 'Path to frozen_inference_graph.pb')
 flags.DEFINE_string('input_dir', '', 'Path to directory of images to perform inference on')
 FLAGS = flags.FLAGS
 
+"""
+python inference/scripts/detect.py --frozen_graph=SAVED_MODEL/frozen_inference_graph.pb --input_dir=DATASETS/indian/train/images/
+"""
+
 # Read the model from the file
 with tf.io.gfile.GFile(FLAGS.frozen_graph, 'rb') as f:
     graph_def = tf.compat.v1.GraphDef()
@@ -19,7 +23,7 @@ with tf.Session() as sess:
     # Read the input file
     files = [f for f in os.listdir(FLAGS.input_dir) if os.path.isfile(os.path.join(FLAGS.input_dir, f))]
 
-    results_path = os.path.join(FLAGS.input_dir, '..', 'results')
+    results_path = os.path.join('inference', 'results')
     os.makedirs(results_path, exist_ok=True)
 
     for f in files:

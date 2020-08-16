@@ -181,5 +181,5 @@ Model is saved to `SAVED_MODEL/saved_model`
 ## Inference
 
 ```
-python inference/scripts/detect.py --frozen_graph=SAVED_MODEL/frozen_inference_graph.pb --input_dir=DATASETS/indian/images/
+python inference/scripts/detect.py --frozen_graph=SAVED_MODEL/frozen_inference_graph.pb --input_dir=DATASETS/indian/train/images/
 ```
