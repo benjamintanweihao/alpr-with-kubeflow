@@ -12,4 +12,6 @@ checkpoint
 saved_model
 train/weights
 results
+*.zip
+*.tar.gz
 

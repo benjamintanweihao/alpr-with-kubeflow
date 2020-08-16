@@ -9,14 +9,14 @@ python csv2tfrecords.py --label=<LABEL> --csv_input=<PATH_TO_ANNOTATIONS_FOLDER>
 
 eg:
 
-python csv2tfrecords.py  --split_name=train --tfrecord_name=indian --label=licence --csv_input=../../DATASETS/indian/train/annotations/train_labels.csv --output_path ../../TFRECORDS/ --img_path=../../DATASETS/indian/train/images/
-python csv2tfrecords.py  --split_name=test --tfrecord_name=indian --label=licence --csv_input=../../DATASETS/indian/test/annotations/test_labels.csv --output_path ../../TFRECORDS/ --img_path=../../DATASETS/indian/test/images/
+python csv2tfrecords.py  --split_name=train --tfrecord_name=indian --label=license-plate --csv_input=../../DATASETS/indian/train/annotations/train_labels.csv --output_path ../../TFRECORDS/ --img_path=../../DATASETS/indian/train/images/
+python csv2tfrecords.py  --split_name=test --tfrecord_name=indian --label=license-plate --csv_input=../../DATASETS/indian/test/annotations/test_labels.csv --output_path ../../TFRECORDS/ --img_path=../../DATASETS/indian/test/images/
 
 python csv2tfrecords.py  --split_name=train --tfrecord_name=romanian --label=license-plate --csv_input=../../DATASETS/romanian/train/annotations/train_labels.csv --output_path ../../TFRECORDS/ --img_path=../../DATASETS/romanian/train/images/
 python csv2tfrecords.py  --split_name=test --tfrecord_name=romanian --label=license-plate --csv_input=../../DATASETS/romanian/test/annotations/test_labels.csv --output_path ../../TFRECORDS/ --img_path=../../DATASETS/romanian/test/images/
 
-python csv2tfrecords.py  --split_name=train --tfrecord_name=voc --label=licenseplate --csv_input=../../DATASETS/voc/train/annotations/train_labels.csv --output_path ../../TFRECORDS/ --img_path=../../DATASETS/voc/train/images/
-python csv2tfrecords.py  --split_name=test --tfrecord_name=voc --label=licenseplate --csv_input=../../DATASETS/voc/test/annotations/test_labels.csv --output_path ../../TFRECORDS/ --img_path=../../DATASETS/voc/test/images/
+python csv2tfrecords.py  --split_name=train --tfrecord_name=voc --label=license-plate --csv_input=../../DATASETS/voc/train/annotations/train_labels.csv --output_path ../../TFRECORDS/ --img_path=../../DATASETS/voc/train/images/
+python csv2tfrecords.py  --split_name=test --tfrecord_name=voc --label=license-plate --csv_input=../../DATASETS/voc/test/annotations/test_labels.csv --output_path ../../TFRECORDS/ --img_path=../../DATASETS/voc/test/images/
 
 """
 
@@ -48,7 +48,7 @@ FLAGS = flags.FLAGS
 
 
 def class_text_to_int(row_label):
-    if row_label == FLAGS.label:  # 'license-plate | licenseplate | licence':
+    if row_label == FLAGS.label:
         return 1
     else:
         raise NotImplementedError
