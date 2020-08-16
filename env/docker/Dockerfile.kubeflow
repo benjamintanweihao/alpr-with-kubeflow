@@ -54,6 +54,8 @@ RUN rm -rf /workspace/{nvidia,docker}-examples && rm -rf /usr/local/nvidia-examp
 RUN echo "conda activate alpr" >> ~/.bashrc
 ENV PATH /opt/conda/envs/alpr/bin:$PATH
 RUN /opt/conda/bin/activate alpr
+# FIX: We need to install this separately.
+RUN pip3 install object-detection-0.1
 
 # make /bin/sh symlink to bash instead of dash:
 RUN echo "dash dash/sh boolean false" | debconf-set-selections && \
@@ -68,12 +70,6 @@ RUN chown dev /home/dev
 
 WORKDIR /workspace/alpr
 ENV PYTHONPATH /workspace/alpr:$PYTHONPATH
-
-# setup .bashrc properly
-RUN cp /root/.bashrc /home/alpr
-COPY docker/.bashrc /tmp
-RUN cat /tmp/.bashrc >> /home/alpr/.bashrc
-RUN rm /tmp/.bashrc
 
 # switch to default user
 USER dev
