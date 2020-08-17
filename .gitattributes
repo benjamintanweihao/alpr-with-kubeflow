@@ -1,2 +1,0 @@
-DATASETS.tar.xz filter=lfs diff=lfs merge=lfs -text
-train/weights.tar.xz filter=lfs diff=lfs merge=lfs -text
