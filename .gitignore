@@ -2,7 +2,6 @@
 __pycache__/
 .idea
 DATASETS
-MODELS
 TFRECORDS
 SAVED_MODEL
 LOGS
