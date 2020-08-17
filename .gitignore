@@ -13,4 +13,5 @@ saved_model
 results
 *.zip
 *.tar.gz
+*.tar.xz
 
