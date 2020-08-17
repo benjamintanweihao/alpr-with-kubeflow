@@ -55,19 +55,19 @@ def convert_to_tfrecords_op(image: str, pvolume: PipelineVolume):
     commands.append(f'cd {PROJECT_ROOT}')
     commands.append('wget -O DATASETS.tar.xz https://www.dropbox.com/s/9dh4jakpgesxa7w/DATASETS.tar.xz?dl=1')
     commands.append('tar xvf DATASETS.tar.xz')
-
+    commands.append('mkdir TFRECORDS')
 
     for d in datasets:
         for split in ['train', 'test']:
-            input_dir = os.path.join('DATASETS', d, split, 'annotations')
+            input_dir = os.path.join(PROJECT_ROOT, 'DATASETS', d, split, 'annotations')
             commands.append(
                 f'python dataprep/scripts/xml2csv.py -i {input_dir} -o {os.path.join(input_dir, "train_labels.csv")}',
             )
 
     for d in datasets:
         for split in ['train', 'test']:
-            csv_input = os.path.join('DATASETS', d, split, 'annotations', f'{split}_labels.csv')
-            img_path = os.path.join('DATASETS', d, split, 'images')
+            csv_input = os.path.join(PROJECT_ROOT, 'DATASETS', d, split, 'annotations', f'{split}_labels.csv')
+            img_path = os.path.join(PROJECT_ROOT, 'DATASETS', d, split, 'images')
             commands.append(
                 f'python dataprep/scripts/csv2tfrecords.py --split_name={split} --tfrecord_name={d} '
                 f'--label=license-plate --csv_input={csv_input} --output_path TFRECORDS/ --img_path={img_path}'

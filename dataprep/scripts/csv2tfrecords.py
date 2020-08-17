@@ -135,7 +135,7 @@ def main(_):
                         tf_example = create_tf_example(grouped[i], path)
                         writer.write(tf_example.SerializeToString())
 
-    print('Successfully created the TFRecords: {}'.format(output_path))
+    print('Successfully created the TFRecords: {}'.format(output_filename))
 
 
 if __name__ == '__main__':
