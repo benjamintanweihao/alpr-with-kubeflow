@@ -1,15 +1,15 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 .idea
-DATASETS
 TFRECORDS
+DATASETS
 SAVED_MODEL
 LOGS
+train/weights
 *.pb
 *.ckpt*
 checkpoint
 saved_model
-train/weights
 results
 *.zip
 *.tar.gz

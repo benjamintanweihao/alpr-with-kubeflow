@@ -1,0 +1,2 @@
+DATASETS/** filter=lfs diff=lfs merge=lfs -text
+train/weights/** filter=lfs diff=lfs merge=lfs -text
