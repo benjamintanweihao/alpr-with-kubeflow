@@ -8,9 +8,24 @@ from kubernetes.client import V1EnvVar
 PROJECT_ROOT = '/workspace/alpr-with-kubeflow'
 
 
+# TODO: add this into the ops
 def add_env_variables(op):
-    op.container.add_env_variable(V1EnvVar(name='PYTHONPATH', value=f"{os.path.join(PROJECT_ROOT, 'alpr')}"))
+    op.container.add_env_variable(V1EnvVar(name='PYTHONPATH', value=PROJECT_ROOT))
     op.container.add_env_variable(V1EnvVar(name='TF_FORCE_GPU_ALLOW_GROWTH', value="true"))
+    return op
+
+
+def set_resource_limits(op, cpu_limit, memory_limit):
+    op.set_cpu_limit(cpu_limit)
+    op.set_memory_limit(memory_limit)
+
+    return op
+
+
+def set_resource_request(op, cpu_request, memory_request):
+    op.set_cpu_limit(cpu_request)
+    op.set_memory_limit(memory_request)
+
     return op
 
 
@@ -44,6 +59,9 @@ def git_clone_op(branch_or_sha: str, pvolume: PipelineVolume):
         pvolumes={"/workspace": pvolume}
     )
 
+    op = set_resource_request(op, cpu_request='500m', memory_request="2G")
+    op = set_resource_limits(op, cpu_limit='2', memory_limit="4G")
+
     return op
 
 
@@ -55,6 +73,13 @@ def convert_to_tfrecords_op(image: str, pvolume: PipelineVolume):
     commands.append('wget -O DATASETS.tar.xz https://www.dropbox.com/s/qtowh6tq57kd2ss/DATASETS.tar.xz?dl=1')
     commands.append('tar xvf DATASETS.tar.xz')
     commands.append('mkdir TFRECORDS')
+
+    # Set up the tensorflow object detection API
+    commands.append(f'cd {PROJECT_ROOT}/MODELS/research')
+    commands.append('protoc object_detection/protos/*.proto --python_out=.')
+    commands.append('cp object_detection/packages/tf1/setup.py .')
+    commands.append('python -m pip install --user .')
+    commands.append('cd ../../')
 
     for d in datasets:
         for split in ['train', 'test']:
@@ -84,23 +109,27 @@ def convert_to_tfrecords_op(image: str, pvolume: PipelineVolume):
         pvolumes={"/workspace": pvolume}
     )
 
+    op = set_resource_request(op, cpu_request='2', memory_request="8G")
+    op = set_resource_limits(op, cpu_limit='2', memory_limit="16G")
+
     return op
 
 
 def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str):
     model_dir = f'LOGS/{model_name}'
 
-    commands = [
-        f'cd {PROJECT_ROOT}/MODELS/research',
-        'protoc object_detection/protos/*.proto --python_out=.',
-        'cp object_detection/packages/tf1/setup.py .',
-        'python -m pip install .',
-        'cd ../../',
-        'wget -O weights.tar.xz https://www.dropbox.com/s/bmdxebtj1cfk9ig/weights.tar.xz?dl=1',
-        'tar xvf weights.tar.xz',
-        f'export PYTHONPATH=$PYTHONPATH:{os.path.join(PROJECT_ROOT, "MODELS")}',
-        f'python train/scripts/model_main.py --model_dir {model_dir} --pipeline_config_path train/model_configs/{model_name}.config '
-    ]
+    # Set up the tensorflow object detection API
+    commands = [f'cd {PROJECT_ROOT}/MODELS/research',
+                'protoc object_detection/protos/*.proto --python_out=.',
+                'cp object_detection/packages/tf1/setup.py .',
+                'python -m pip install --user .',
+                'cd ../../',
+                f'cd {PROJECT_ROOT}',
+                'wget -O weights.tar.xz https://www.dropbox.com/s/bmdxebtj1cfk9ig/weights.tar.xz?dl=1',
+                'tar xvf weights.tar.xz',
+                f'export PYTHONPATH=$PYTHONPATH:{os.path.join(PROJECT_ROOT, "MODELS")}',
+                f'python train/scripts/model_main.py --model_dir {model_dir} --pipeline_config_path train/model_configs/{model_name}.config '
+                ]
 
     for c in commands:
         print(c)
@@ -114,11 +143,19 @@ def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str):
         pvolumes={"/workspace": pvolume}
     )
 
+    op = set_resource_request(op, cpu_request='2', memory_request="8G")
+    op = set_resource_limits(op, cpu_limit='2', memory_limit="16G")
+
     return op
 
 
 def export_save_model_op(image: str, pvolume: PipelineVolume, model_name: str):
     commands = [
+        f'cd {PROJECT_ROOT}/MODELS/research',
+        'protoc object_detection/protos/*.proto --python_out=.',
+        'cp object_detection/packages/tf1/setup.py .',
+        'python -m pip install --user .',
+        'cd ../../',
         f'cd {PROJECT_ROOT}',
         f'export PYTHONPATH=$PYTHONPATH:{os.path.join(PROJECT_ROOT, "MODELS")}',
         f'python MODELS/research/object_detection/export_inference_graph.py --input_type image_tensor '
@@ -137,6 +174,9 @@ def export_save_model_op(image: str, pvolume: PipelineVolume, model_name: str):
         container_kwargs={'image_pull_policy': 'IfNotPresent'},
         pvolumes={"/workspace": pvolume}
     )
+
+    op = set_resource_request(op, cpu_request='2', memory_request="8G")
+    op = set_resource_limits(op, cpu_limit='2', memory_limit="16G")
 
     return op
 
