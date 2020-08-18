@@ -53,7 +53,7 @@ def convert_to_tfrecords_op(image: str, pvolume: PipelineVolume):
     datasets = ['indian', 'romanian', 'voc']
 
     commands.append(f'cd {PROJECT_ROOT}')
-    commands.append('wget -O DATASETS.tar.xz https://www.dropbox.com/s/9dh4jakpgesxa7w/DATASETS.tar.xz?dl=1')
+    commands.append('wget -O DATASETS.tar.xz https://www.dropbox.com/s/qtowh6tq57kd2ss/DATASETS.tar.xz?dl=1')
     commands.append('tar xvf DATASETS.tar.xz')
     commands.append('mkdir TFRECORDS')
 
