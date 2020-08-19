@@ -8,9 +8,7 @@ from kubernetes.client import V1EnvVar
 PROJECT_ROOT = '/workspace/alpr-with-kubeflow'
 
 
-# TODO: add this into the ops
 def add_env_variables(op):
-    op.container.add_env_variable(V1EnvVar(name='PYTHONPATH', value=PROJECT_ROOT))
     op.container.add_env_variable(V1EnvVar(name='TF_FORCE_GPU_ALLOW_GROWTH', value="true"))
     return op
 
@@ -59,8 +57,8 @@ def git_clone_op(branch_or_sha: str, pvolume: PipelineVolume):
         pvolumes={"/workspace": pvolume}
     )
 
-    op = set_resource_request(op, cpu_request='500m', memory_request="2G")
-    op = set_resource_limits(op, cpu_limit='2', memory_limit="4G")
+    op = set_resource_request(op, cpu_request='500m', memory_request="1G")
+    op = set_resource_limits(op, cpu_limit='1', memory_limit="2G")
 
     return op
 
@@ -109,8 +107,8 @@ def convert_to_tfrecords_op(image: str, pvolume: PipelineVolume):
         pvolumes={"/workspace": pvolume}
     )
 
-    op = set_resource_request(op, cpu_request='2', memory_request="8G")
-    op = set_resource_limits(op, cpu_limit='2', memory_limit="16G")
+    op = set_resource_request(op, cpu_request='1', memory_request="2G")
+    op = set_resource_limits(op, cpu_limit='2', memory_limit="4G")
 
     return op
 
@@ -143,13 +141,16 @@ def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str):
         pvolumes={"/workspace": pvolume}
     )
 
-    op = set_resource_request(op, cpu_request='2', memory_request="8G")
-    op = set_resource_limits(op, cpu_limit='2', memory_limit="16G")
+    op = add_env_variables(op)
+    op = set_resource_request(op, cpu_request='1500m', memory_request="8G")
+    op = set_resource_limits(op, cpu_limit='2', memory_limit="10G")
 
     return op
 
 
-def export_save_model_op(image: str, pvolume: PipelineVolume, model_name: str):
+def export_saved_model_op(image: str, pvolume: PipelineVolume, model_name: str):
+    model_dir = f'LOGS/{model_name}'
+
     commands = [
         f'cd {PROJECT_ROOT}/MODELS/research',
         'protoc object_detection/protos/*.proto --python_out=.',
@@ -160,7 +161,7 @@ def export_save_model_op(image: str, pvolume: PipelineVolume, model_name: str):
         f'export PYTHONPATH=$PYTHONPATH:{os.path.join(PROJECT_ROOT, "MODELS")}',
         f'python MODELS/research/object_detection/export_inference_graph.py --input_type image_tensor '
         f'--pipeline_config_path train/model_configs/{model_name}.config '
-        f'--trained_checkpoint_prefix LOGS/model.ckpt --output_directory SAVED_MODEL/{model_name}'
+        f'--trained_checkpoint_prefix {model_dir} --output_directory SAVED_MODEL/{model_name}'
     ]
 
     for c in commands:
@@ -175,8 +176,9 @@ def export_save_model_op(image: str, pvolume: PipelineVolume, model_name: str):
         pvolumes={"/workspace": pvolume}
     )
 
-    op = set_resource_request(op, cpu_request='2', memory_request="8G")
-    op = set_resource_limits(op, cpu_limit='2', memory_limit="16G")
+    op = add_env_variables(op)
+    op = set_resource_request(op, cpu_request='2', memory_request="2G")
+    op = set_resource_limits(op, cpu_limit='2', memory_limit="4G")
 
     return op
 
@@ -205,9 +207,9 @@ def alpr_pipeline(
                                           pvolume=convert_to_tfrecords.pvolume,
                                           model_name=model_name)
 
-    export_save_model_op(image=image,
-                         pvolume=training_and_eval.pvolume,
-                         model_name=model_name)
+    export_saved_model_op(image=image,
+                          pvolume=training_and_eval.pvolume,
+                          model_name=model_name)
 
 
 if __name__ == '__main__':
