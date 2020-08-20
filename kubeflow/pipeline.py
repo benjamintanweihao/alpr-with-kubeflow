@@ -104,7 +104,8 @@ def convert_to_tfrecords_op(image: str, pvolume: PipelineVolume):
         command=['sh'],
         arguments=['-c', ' && '.join(commands)],
         container_kwargs={'image_pull_policy': 'IfNotPresent'},
-        pvolumes={"/workspace": pvolume}
+        pvolumes={"/workspace": pvolume},
+        file_outputs={'tfrecords': os.path.join(PROJECT_ROOT, 'TFRECORDS')}
     )
 
     op = set_resource_request(op, cpu_request='1', memory_request="2G")
@@ -113,7 +114,7 @@ def convert_to_tfrecords_op(image: str, pvolume: PipelineVolume):
     return op
 
 
-def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str):
+def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str, num_train_steps: str):
     model_dir = f'LOGS/{model_name}'
 
     # Set up the tensorflow object detection API
@@ -126,7 +127,7 @@ def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str):
                 'wget -O weights.tar.xz https://www.dropbox.com/s/bmdxebtj1cfk9ig/weights.tar.xz?dl=1',
                 'tar xvf weights.tar.xz',
                 f'export PYTHONPATH=$PYTHONPATH:{os.path.join(PROJECT_ROOT, "MODELS")}',
-                f'python train/scripts/model_main.py --model_dir {model_dir} --pipeline_config_path train/model_configs/{model_name}.config '
+                f'python train/scripts/model_main.py --model_dir {model_dir} --pipeline_config_path train/model_configs/{model_name}.config --num_train_steps={num_train_steps}'
                 ]
 
     for c in commands:
@@ -138,7 +139,9 @@ def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str):
         command=['sh'],
         arguments=['-c', ' && '.join(commands)],
         container_kwargs={'image_pull_policy': 'IfNotPresent'},
-        pvolumes={"/workspace": pvolume}
+        pvolumes={"/workspace": pvolume},
+        file_outputs={'model_config': f'{PROJECT_ROOT}/train/model_configs/',
+                      'model_dir': os.path.join(PROJECT_ROOT, 'LOGS')}
     )
 
     op = add_env_variables(op)
@@ -148,8 +151,8 @@ def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str):
     return op
 
 
-def export_saved_model_op(image: str, pvolume: PipelineVolume, model_name: str):
-    model_dir = f'LOGS/{model_name}'
+def export_saved_model_op(image: str, pvolume: PipelineVolume, model_name: str, num_train_steps: str):
+    checkpoint_prefix = f'LOGS/{model_name}/model.ckpt-{num_train_steps}'
 
     commands = [
         f'cd {PROJECT_ROOT}/MODELS/research',
@@ -161,7 +164,7 @@ def export_saved_model_op(image: str, pvolume: PipelineVolume, model_name: str):
         f'export PYTHONPATH=$PYTHONPATH:{os.path.join(PROJECT_ROOT, "MODELS")}',
         f'python MODELS/research/object_detection/export_inference_graph.py --input_type image_tensor '
         f'--pipeline_config_path train/model_configs/{model_name}.config '
-        f'--trained_checkpoint_prefix {model_dir} --output_directory SAVED_MODEL/{model_name}'
+        f'--trained_checkpoint_prefix {checkpoint_prefix} --output_directory SAVED_MODEL/{model_name}'
     ]
 
     for c in commands:
@@ -173,7 +176,8 @@ def export_saved_model_op(image: str, pvolume: PipelineVolume, model_name: str):
         command=['sh'],
         arguments=['-c', ' && '.join(commands)],
         container_kwargs={'image_pull_policy': 'IfNotPresent'},
-        pvolumes={"/workspace": pvolume}
+        pvolumes={"/workspace": pvolume},
+        file_outputs={'saved_model': f'{PROJECT_ROOT}/SAVED_MODEL'}
     )
 
     op = add_env_variables(op)
@@ -190,7 +194,8 @@ def export_saved_model_op(image: str, pvolume: PipelineVolume, model_name: str):
 def alpr_pipeline(
         image: str = "benjamintanweihao/alpr-kubeflow",
         branch: str = 'master',
-        model_name: str = 'ssd_inception_v2_coco'):
+        model_name: str = 'ssd_inception_v2_coco',
+        num_train_steps: str = '20000'):
     resource_name = 'alpr-pipeline-pvc'
 
     create_pipeline_volume = create_pipeline_volume_op(resource_name=resource_name)
@@ -205,11 +210,13 @@ def alpr_pipeline(
 
     training_and_eval = train_and_eval_op(image=image,
                                           pvolume=convert_to_tfrecords.pvolume,
-                                          model_name=model_name)
+                                          model_name=model_name,
+                                          num_train_steps=num_train_steps)
 
     export_saved_model_op(image=image,
                           pvolume=training_and_eval.pvolume,
-                          model_name=model_name)
+                          model_name=model_name,
+                          num_train_steps=num_train_steps)
 
 
 if __name__ == '__main__':

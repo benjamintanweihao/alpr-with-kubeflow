@@ -26,8 +26,10 @@ from __future__ import print_function
 from absl import flags
 
 import tensorflow.compat.v1 as tf
+from google.protobuf import text_format
 
 from object_detection import model_lib
+from object_detection.protos import pipeline_pb2
 
 flags.DEFINE_string(
     'model_dir', None, 'Path to output model directory '
@@ -65,6 +67,19 @@ def main(unused_argv):
     flags.mark_flag_as_required('model_dir')
     flags.mark_flag_as_required('pipeline_config_path')
     config = tf.estimator.RunConfig(model_dir=FLAGS.model_dir)
+
+    # NOTE: IF YOU WANT TO CHANGE THE CONFIG
+
+    # pipeline_config = pipeline_pb2.TrainEvalPipelineConfig()
+    # with tf.gfile.GFile(FLAGS.pipeline_config_path, "r") as f:
+    #     proto_str = f.read
+    #     text_format.Merge(proto_str, pipeline_config)
+
+    # pipeline_config.train_config.num_steps = 20000
+
+    # config_text = text_format.MessageToString(pipeline_config)
+    # with tf.gfile.Open(FLAGS.pipeline_config_path, "wb") as f:
+    #     f.write(config_text)
 
     train_and_eval_dict = model_lib.create_estimator_and_inputs(
         run_config=config,
