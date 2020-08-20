@@ -1,12 +1,9 @@
-## Create Conda Environment
+## Setting up the project dependencies locally
 
 ```
-mkdir alpr-with-kubeflow
-cd alpr-with-kubeflow
-conda create -n alpr python=3.6
-conda activate alpr
-conda install tensorflow-gpu=1.15
+pip install -r env/requirements.txt
 ```
+
 Test it out:
 
 ```
@@ -83,15 +80,6 @@ Running tests under Python 3.6.10: /home/benjamintan/miniconda3/envs/alpr/bin/py
 Ran 21 tests in 0.144s
 
 OK (skipped=1)
-```
-
-
-## Export Conda Environment 
-
-For reproducibility
-```
-mkdir conda
-conda env export > conda/environment.yml
 ```
 
 ## Datasets
