@@ -2,3 +2,4 @@ scipy==1.5.0
 opencv-python==4.3.0.38
 pandas==1.1.0
 kfp==1.0.0
+boto3
