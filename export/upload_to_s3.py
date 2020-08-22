@@ -30,9 +30,10 @@ def main():
     model_version = args.model_version
     export_bucket = args.export_bucket
 
+    # TODO: Dont hardcode this
     s3 = boto3.client(
         "s3",
-        endpoint_url="http://minio-service.kubeflow:9000",
+        endpoint_url="http://10.1.56.251:9000",
         aws_access_key_id="minio",
         aws_secret_access_key="minio123",
         config=Config(signature_version="s3v4"),

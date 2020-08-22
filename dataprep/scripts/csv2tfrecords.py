@@ -126,7 +126,7 @@ def main(_):
     with tf.Graph().as_default():
         with tf.Session() as sess:
             for shard_id in range(num_shards):
-                output_filename = get_dataset_filename(output_path, split_name, shard_id, tfrecord_filename, num_shards)
+                output_filename = get_dataset_filename(output_path, split_name, shard_id + 1, tfrecord_filename, num_shards)
 
                 with tf.io.TFRecordWriter(output_filename) as writer:
                     start_idx = shard_id * num_per_shard
