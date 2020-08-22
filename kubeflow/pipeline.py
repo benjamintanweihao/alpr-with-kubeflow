@@ -241,7 +241,7 @@ def serving_op(export_bucket: str, model_name: str):
         default_model_uri=f"s3://{export_bucket}/{model_name}",
         model_name=model_name,
         namespace='kubeflow',
-        framework="tensorflow 1.15")
+        framework="tensorflow")
 
 
 @dsl.pipeline(
@@ -253,7 +253,7 @@ def alpr_pipeline(
         branch: str = 'master',
         model_name: str = 'ssd_inception_v2_coco',
         num_train_steps: str = '20000',
-        export_bucket: str = 'served_models',
+        export_bucket: str = 'servedmodels',
         model_version: int = 1
 ):
     resource_name = 'alpr-pipeline-pvc'
