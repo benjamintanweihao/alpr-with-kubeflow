@@ -2,7 +2,7 @@
 __pycache__/
 .idea
 TFRECORDS
-DATASETS
+DATASETS*
 SAVED_MODEL
 LOGS
 train/weights
