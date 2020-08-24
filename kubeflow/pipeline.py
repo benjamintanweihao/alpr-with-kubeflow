@@ -135,7 +135,7 @@ def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str, num_
                 'wget -O weights.tar.xz https://www.dropbox.com/s/bmdxebtj1cfk9ig/weights.tar.xz?dl=1',
                 'tar xvf weights.tar.xz',
                 f'export PYTHONPATH=$PYTHONPATH:{os.path.join(PROJECT_ROOT, "MODELS")}',
-                f'python train/scripts/model_main.py --model_dir {model_dir} --pipeline_config_path train/model_configs/{model_name}.config --num_train_steps={num_train_steps}'
+                f'python train/scripts/model_main.py --model_dir {model_dir} --pipeline_config_path train/model_configs/{model_name}.config --num_train_steps={num_train_steps}',
                 f'echo {PROJECT_ROOT}/LOGS/{model_name} > /workspace/model_dir.txt'
                 ]
 

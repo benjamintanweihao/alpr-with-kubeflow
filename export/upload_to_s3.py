@@ -30,10 +30,9 @@ def main():
     model_version = args.model_version
     export_bucket = args.export_bucket
 
-    # TODO: Dont hardcode this
     s3 = boto3.client(
         "s3",
-        endpoint_url="http://10.1.1.66:9000",
+        endpoint_url=f"http://{os.environ['MINIO_SERVICE_SERVICE_HOST']}:{os.environ['MINIO_SERVICE_SERVICE_PORT']}",
         aws_access_key_id="minio",
         aws_secret_access_key="minio123",
         config=Config(signature_version="s3v4"),
