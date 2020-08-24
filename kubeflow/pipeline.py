@@ -136,6 +136,7 @@ def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str, num_
                 'tar xvf weights.tar.xz',
                 f'export PYTHONPATH=$PYTHONPATH:{os.path.join(PROJECT_ROOT, "MODELS")}',
                 f'python train/scripts/model_main.py --model_dir {model_dir} --pipeline_config_path train/model_configs/{model_name}.config --num_train_steps={num_train_steps}'
+                f'echo {PROJECT_ROOT}/LOGS/{model_name} > /workspace/model_dir.txt'
                 ]
 
     for c in commands:
@@ -149,7 +150,7 @@ def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str, num_
         container_kwargs={'image_pull_policy': 'IfNotPresent'},
         pvolumes={"/workspace": pvolume},
         file_outputs={'model_config': f'{PROJECT_ROOT}/train/model_configs/',
-                      'model_dir': os.path.join(PROJECT_ROOT, 'LOGS')}
+                      'model_dir': '/workspace/model_dir.txt'}
     )
 
     op = add_env_variables(op)
@@ -159,45 +160,7 @@ def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str, num_
     return op
 
 
-def export_saved_model_op(image: str, pvolume: PipelineVolume, model_name: str, num_train_steps: str):
-    checkpoint_prefix = f'LOGS/{model_name}/model.ckpt-{num_train_steps}'
-
-    commands = [
-        f'cd {PROJECT_ROOT}/MODELS/research',
-        'protoc object_detection/protos/*.proto --python_out=.',
-        'cp object_detection/packages/tf1/setup.py .',
-        'python -m pip install --user .',
-        'cd ../../',
-        f'cd {PROJECT_ROOT}',
-        f'export PYTHONPATH=$PYTHONPATH:{os.path.join(PROJECT_ROOT, "MODELS")}',
-        f'python MODELS/research/object_detection/export_inference_graph.py --input_type image_tensor '
-        f'--pipeline_config_path train/model_configs/{model_name}.config '
-        f'--trained_checkpoint_prefix {checkpoint_prefix} --output_directory SAVED_MODEL/{model_name}',
-        f'echo {PROJECT_ROOT}/SAVED_MODEL/{model_name} > /workspace/model_dir.txt'
-    ]
-
-    for c in commands:
-        print(c)
-
-    op = dsl.ContainerOp(
-        name='export savedmodel',
-        image=image,
-        command=['sh'],
-        arguments=['-c', ' && '.join(commands)],
-        container_kwargs={'image_pull_policy': 'IfNotPresent'},
-        pvolumes={"/workspace": pvolume},
-        file_outputs={'saved_model': f'{PROJECT_ROOT}/SAVED_MODEL',
-                      'model_dir': f'/workspace/model_dir.txt'}
-    )
-
-    op = add_env_variables(op)
-    op = set_resource_request(op, cpu_request='500m', memory_request="2G")
-    op = set_resource_limits(op, cpu_limit='1', memory_limit="4G")
-
-    return op
-
-
-def export_model_op(
+def upload_to_s3_op(
         image: str,
         pvolume: PipelineVolume,
         model_dir: InputPath(str),
@@ -289,21 +252,16 @@ def alpr_pipeline(
                                           model_name=model_name,
                                           num_train_steps=num_train_steps)
 
-    export_saved_model = export_saved_model_op(image=image,
-                                               pvolume=training_and_eval.pvolume,
-                                               model_name=model_name,
-                                               num_train_steps=num_train_steps)
-
-    export_model = export_model_op(image=image,
-                                   pvolume=export_saved_model.pvolume,
-                                   model_dir=export_saved_model.outputs['model_dir'],
+    upload_to_s3 = upload_to_s3_op(image=image,
+                                   pvolume=training_and_eval.pvolume,
+                                   model_dir=training_and_eval.outputs['model_dir'],
                                    export_bucket=export_bucket,
                                    model_name=model_name,
                                    model_version=model_version)
 
     serving_op(export_bucket=export_bucket,
                model_name=model_name,
-               model_dns_prefix=model_dns_prefix).after(export_model)
+               model_dns_prefix=model_dns_prefix).after(upload_to_s3)
 
 
 if __name__ == '__main__':
