@@ -22,15 +22,15 @@ def minio_env_variables(op):
 
 
 def set_resource_limits(op, cpu_limit, memory_limit):
-    op.set_cpu_limit(cpu_limit)
-    op.set_memory_limit(memory_limit)
+    # op.set_cpu_limit(cpu_limit)
+    # op.set_memory_limit(memory_limit)
 
     return op
 
 
 def set_resource_request(op, cpu_request, memory_request):
-    op.set_cpu_limit(cpu_request)
-    op.set_memory_limit(memory_request)
+    # op.set_cpu_limit(cpu_request)
+    # op.set_memory_limit(memory_request)
 
     return op
 
@@ -116,8 +116,8 @@ def convert_to_tfrecords_op(image: str, pvolume: PipelineVolume):
         file_outputs={'tfrecords': os.path.join(PROJECT_ROOT, 'TFRECORDS')}
     )
 
-    op = set_resource_request(op, cpu_request='1', memory_request="2G")
-    op = set_resource_limits(op, cpu_limit='2', memory_limit="4G")
+    op = set_resource_request(op, cpu_request='500m', memory_request="2G")
+    op = set_resource_limits(op, cpu_limit='1', memory_limit="4G")
 
     return op
 
@@ -153,7 +153,7 @@ def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str, num_
     )
 
     op = add_env_variables(op)
-    op = set_resource_request(op, cpu_request='1500m', memory_request="8G")
+    op = set_resource_request(op, cpu_request='1', memory_request="8G")
     op = set_resource_limits(op, cpu_limit='2', memory_limit="10G")
 
     return op
@@ -191,8 +191,8 @@ def export_saved_model_op(image: str, pvolume: PipelineVolume, model_name: str, 
     )
 
     op = add_env_variables(op)
-    op = set_resource_request(op, cpu_request='2', memory_request="2G")
-    op = set_resource_limits(op, cpu_limit='2', memory_limit="4G")
+    op = set_resource_request(op, cpu_request='500m', memory_request="2G")
+    op = set_resource_limits(op, cpu_limit='1', memory_limit="4G")
 
     return op
 
@@ -225,23 +225,38 @@ def export_model_op(
         pvolumes={"/workspace": pvolume}
     )
 
-    op = set_resource_request(op, cpu_request='1', memory_request="2G")
-    op = set_resource_limits(op, cpu_limit='2', memory_limit="4G")
+    op = set_resource_request(op, cpu_request='0.5', memory_request="2G")
+    op = set_resource_limits(op, cpu_limit='1', memory_limit="4G")
 
     return op
 
 
-def serving_op(export_bucket: str, model_name: str):
+# A couple of things needs to happen before this would work
+# 1. Create a namepace with `kfserving-inference-service` and
+#    with the `serving.kubeflow.org/inferenceservice=enabled` label.
+#    This namespace shouldn't have a `control-plane` level
+# 2. Within this namespace, you would need to create two things:
+# a) A Secret that would contain the MinIO credentials
+# b) A ServiceAccount that points to this Secret.
+#
+# The Serving Op will then reference this ServiceAccount in order to
+# access the MinIO credentials.
+
+def serving_op(export_bucket: str, model_name: str, model_dns_prefix: str):
     kfserving_op = components.load_component_from_url(
         'https://raw.githubusercontent.com/kubeflow/pipelines/master/components/kubeflow/kfserving/component.yaml'
     )
 
-    return kfserving_op(
+    op = kfserving_op(
         action="create",
         default_model_uri=f"s3://{export_bucket}/{model_name}",
-        model_name=model_name,
-        namespace='kubeflow',
-        framework="tensorflow")
+        model_name=model_dns_prefix,  # this should be DNS friendly
+        namespace='kfserving-inference-service',
+        framework="tensorflow",
+        service_account="sa"
+    )
+
+    return op
 
 
 @dsl.pipeline(
@@ -252,6 +267,7 @@ def alpr_pipeline(
         image: str = "benjamintanweihao/alpr-kubeflow",
         branch: str = 'master',
         model_name: str = 'ssd_inception_v2_coco',
+        model_dns_prefix: str = 'ssd-inception-v2',
         num_train_steps: str = '20000',
         export_bucket: str = 'servedmodels',
         model_version: int = 1
@@ -286,7 +302,8 @@ def alpr_pipeline(
                                    model_version=model_version)
 
     serving_op(export_bucket=export_bucket,
-               model_name=model_name).after(export_model)
+               model_name=model_name,
+               model_dns_prefix=model_dns_prefix).after(export_model)
 
 
 if __name__ == '__main__':
