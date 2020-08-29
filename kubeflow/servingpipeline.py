@@ -18,9 +18,13 @@ def add_env_variables(op):
 # 1. Create a namepace with `kfserving-inference-service` and
 #    with the `serving.kubeflow.org/inferenceservice=enabled` label.
 #    This namespace shouldn't have a `control-plane` level
+#
 # 2. Within this namespace, you would need to create two things:
 # a) A Secret that would contain the MinIO credentials
 # b) A ServiceAccount that points to this Secret.
+#
+# 3. Modify the InferenceService ConfigMap to include the
+#    tensorflow-1.15 and tensorflow-gpu-1.15.
 #
 # The Serving Op will then reference this ServiceAccount in order to
 # access the MinIO credentials.
@@ -30,14 +34,18 @@ def serving_op(export_bucket: str, model_name: str, model_dns_prefix: str):
         'https://raw.githubusercontent.com/kubeflow/pipelines/master/components/kubeflow/kfserving/component.yaml'
     )
 
+    # TODO: Check how we can modify the minReplicas: 1
+
     op = kfserving_op(
         action="create",
-        default_model_uri=f"s3://{export_bucket}/{model_name}",
+        default_model_uri=f"s3://{export_bucket}/{model_name}/1",
         model_name=model_dns_prefix,  # this should be DNS friendly
         namespace='kfserving-inference-service',
         framework="tensorflow",
         service_account="sa"
     )
+
+    op = add_env_variables(op)
 
     return op
 
@@ -47,7 +55,7 @@ def serving_op(export_bucket: str, model_name: str, model_dns_prefix: str):
     description='This is a single component Pipeline for Serving'
 )
 def alpr_pipeline(
-        model_name: str = 'saved_model_half_plus_two_cpu',
+        model_name: str = 'ssd_inception_v2_coco',
         export_bucket: str = 'servedmodels',
         model_dns_prefix: str = 'ssd-inception-v2'):
     serving_op(export_bucket=export_bucket,

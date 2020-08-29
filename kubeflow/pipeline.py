@@ -160,7 +160,7 @@ def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str, num_
     return op
 
 
-def export_saved_model_op(image: str, pvolume: PipelineVolume, model_name: str, num_train_steps: str):
+def export_saved_model_op(image: str, pvolume: PipelineVolume, model_name: str, model_version: str, num_train_steps: str):
     checkpoint_prefix = f'LOGS/{model_name}/model.ckpt-{num_train_steps}'
 
     commands = [
@@ -174,6 +174,7 @@ def export_saved_model_op(image: str, pvolume: PipelineVolume, model_name: str, 
         f'python MODELS/research/object_detection/export_inference_graph.py --input_type image_tensor '
         f'--pipeline_config_path train/model_configs/{model_name}.config '
         f'--trained_checkpoint_prefix {checkpoint_prefix} --output_directory SAVED_MODEL/{model_name}',
+        f'mv {PROJECT_ROOT}/SAVED_MODEL/{model_name}/saved_model {PROJECT_ROOT}/SAVED_MODEL/{model_name}/{model_version}',
         f'echo {PROJECT_ROOT}/SAVED_MODEL/{model_name} > /workspace/model_dir.txt'
     ]
 
@@ -204,7 +205,7 @@ def upload_to_s3_op(
         model_dir: InputPath(str),
         export_bucket: str,
         model_name: str,
-        model_version: int,
+        model_version: str,
 ):
     commands = [
         f'cd {PROJECT_ROOT}',
@@ -243,14 +244,14 @@ def upload_to_s3_op(
 # The Serving Op will then reference this ServiceAccount in order to
 # access the MinIO credentials.
 
-def serving_op(export_bucket: str, model_name: str, model_dns_prefix: str):
+def serving_op(export_bucket: str, model_name: str, model_version: str, model_dns_prefix: str):
     kfserving_op = components.load_component_from_url(
         'https://raw.githubusercontent.com/kubeflow/pipelines/master/components/kubeflow/kfserving/component.yaml'
     )
 
     op = kfserving_op(
         action="create",
-        default_model_uri=f"s3://{export_bucket}/{model_name}",
+        default_model_uri=f"s3://{export_bucket}/{model_name}/{model_version}",
         model_name=model_dns_prefix,  # this should be DNS friendly
         namespace='kfserving-inference-service',
         framework="tensorflow",
@@ -271,7 +272,7 @@ def alpr_pipeline(
         model_dns_prefix: str = 'ssd-inception-v2',
         num_train_steps: str = '20000',
         export_bucket: str = 'servedmodels',
-        model_version: int = 1
+        model_version: str = '1'
 ):
     resource_name = 'alpr-pipeline-pvc'
 
@@ -293,6 +294,7 @@ def alpr_pipeline(
     export_saved_model = export_saved_model_op(image=image,
                                                pvolume=training_and_eval.pvolume,
                                                model_name=model_name,
+                                               model_version=model_version,
                                                num_train_steps=num_train_steps)
 
     upload_to_s3 = upload_to_s3_op(image=image,
@@ -304,6 +306,7 @@ def alpr_pipeline(
 
     serving_op(export_bucket=export_bucket,
                model_name=model_name,
+               model_version=model_version,
                model_dns_prefix=model_dns_prefix).after(upload_to_s3)
 
 
