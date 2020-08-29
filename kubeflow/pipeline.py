@@ -252,7 +252,7 @@ def serving_op(image: str, pvolume: PipelineVolume, model_dns_prefix: str, stora
 
     commands = [
         f'cd {PROJECT_ROOT}',
-        f'python serving/kfs_deployer --namespace={namespace} '
+        f'python serving/kfs_deployer.py --namespace={namespace} '
         f'--name={model_dns_prefix} '
         f'--storage_uri={storage_uri} '
         f'--runtime_version={runtime_version} '
