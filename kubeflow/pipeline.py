@@ -160,7 +160,8 @@ def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str, num_
     return op
 
 
-def export_saved_model_op(image: str, pvolume: PipelineVolume, model_name: str, model_version: str, num_train_steps: str):
+def export_saved_model_op(image: str, pvolume: PipelineVolume, model_name: str, model_version: str,
+                          num_train_steps: str):
     checkpoint_prefix = f'LOGS/{model_name}/model.ckpt-{num_train_steps}'
 
     commands = [
@@ -244,19 +245,33 @@ def upload_to_s3_op(
 # The Serving Op will then reference this ServiceAccount in order to
 # access the MinIO credentials.
 
-def serving_op(export_bucket: str, model_name: str, model_version: str, model_dns_prefix: str):
-    kfserving_op = components.load_component_from_url(
-        'https://raw.githubusercontent.com/kubeflow/pipelines/master/components/kubeflow/kfserving/component.yaml'
+def serving_op(image: str, pvolume: PipelineVolume, model_dns_prefix: str, storage_uri):
+    namespace = 'kfserving-inference-service'
+    runtime_version = '1.15.0'
+    service_account_name = 'sa'
+
+    commands = [
+        f'cd {PROJECT_ROOT}',
+        f'python serving/kfs_deployer --namespace={namespace} '
+        f'--name={model_dns_prefix} '
+        f'--storage_uri={storage_uri} '
+        f'--runtime_version={runtime_version} '
+        f'--service_account_name={service_account_name} '
+    ]
+
+    for c in commands:
+        print(c)
+
+    op = dsl.ContainerOp(
+        name='serve model',
+        image=image,
+        command=['sh'],
+        arguments=['-c', ' && '.join(commands)],
+        container_kwargs={'image_pull_policy': 'IfNotPresent'},
+        pvolumes={"/workspace": pvolume}
     )
 
-    op = kfserving_op(
-        action="create",
-        default_model_uri=f"s3://{export_bucket}/{model_name}/{model_version}",
-        model_name=model_dns_prefix,  # this should be DNS friendly
-        namespace='kfserving-inference-service',
-        framework="tensorflow",
-        service_account="sa"
-    )
+    op = add_env_variables(op)
 
     return op
 
@@ -304,10 +319,10 @@ def alpr_pipeline(
                                    model_name=model_name,
                                    model_version=model_version)
 
-    serving_op(export_bucket=export_bucket,
-               model_name=model_name,
-               model_version=model_version,
-               model_dns_prefix=model_dns_prefix).after(upload_to_s3)
+    serving_op(image=image,
+               pvolume=upload_to_s3.pvolume,
+               model_dns_prefix=model_dns_prefix,
+               storage_uri=f's3://{export_bucket}/{model_name}/{model_version}')
 
 
 if __name__ == '__main__':
