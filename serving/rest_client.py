@@ -3,7 +3,7 @@ import json
 import cv2
 import numpy as np
 
-image = cv2.imread("/home/benjamintan/workspace/alpr-with-kubeflow/DATASETS/romanian/test/images/dayride_type1_001.mp4#t=31.jpg", 1)
+image = cv2.imread("PATH-TO-IMAGE", 1)
 image_content = image.astype('uint8').tolist()
 
 instance = [{"inputs": image_content}]
@@ -11,9 +11,11 @@ data = json.dumps({"instances": instance, "signature_name": "serving_default"})
 
 headers = {"content-type": "application/json"}
 
-HOST = "10.1.1.242"
-PORT = "8080"
-MODEL_NAME = "old"
+HOST = "10.x.x.x"
+PORT = "80"
+MODEL_NAME = "ssd-inception-v2"
+
+THRESHOLD = 0.3
 
 # To test on tensorflow/serving:
 # docker run -t --rm -p 8500:8500 -p 8501:8501 -v \
@@ -47,8 +49,7 @@ def box_normal_to_pixel(box, dim, scalefactor=1):
 
 
 for box, score, cls in zip(boxes, scores, classes):
-
-    if score > 0.3:
+    if score > THRESHOLD:
         dim = image.shape
         box = box_normal_to_pixel(box, dim)
         b = box.astype(int)

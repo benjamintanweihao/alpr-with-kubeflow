@@ -3,14 +3,8 @@
 ### via Conda
 
 ```
-conda create -n alpr -c conda-forge python=3.6 scipy==1.5.0  pandas==1.1.0 kfp==1.0.0 boto3 pip
-pip install opencv-python==4.3.0.38 tensorflow-gpu==1.15.3 kfserving
-```
-
-### via requirements.txt (not recommended)
-
-```
-pip install -r env/requirements.txt
+conda create -n alpr -c conda-forge python=3.6 scipy==1.5.0  pandas==1.1.0 kfp==1.0.0 boto3==1.9.66 pip
+pip install opencv-python==4.3.0.38 tensorflow-gpu==1.15.3 kfserving==0.4.0
 ```
 
 Test it out:
@@ -25,7 +19,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 '1.15.0'
 ```
 
-## Install Tensorflow Object Detection API
+### Install Tensorflow Object Detection API
 
 ```
 git clone https://github.com/tensorflow/models.git MODELS
@@ -105,7 +99,6 @@ These are the datasets used:
 
 git clone https://github.com/RobertLucian/license-plate-dataset DATASETS/romanian-license-plate-dataset
 
-
 ### Preparing the Dataset
 
 #### Create `label_map.pbtxt`
@@ -164,19 +157,39 @@ python model_main.py --model_dir ../../LOGS/ --pipeline_config_path ../model_con
 ### Observing via Tensorboard
 
 ```
-(alpr) benjamintan@cerberus:~/workspace/alpr-with-kubeflow/train$ tensorboard --logdir=logs
+$ tensorboard --logdir=logs
 ```
 
 ## Export Model
 
 ```bash
-(alpr) ~/workspace/alpr-with-kubeflow$ python MODELS/research/object_detection/export_inference_graph.py --input_type image_tensor --pipeline_config_path train/model_configs/ssd_inception_v2_coco.config --trained_checkpoint_prefix LOGS/model.ckpt-20000 --output_directory SAVED_MODEL
+python MODELS/research/object_detection/export_inference_graph.py --input_type image_tensor --pipeline_config_path train/model_configs/ssd_inception_v2_coco.config --trained_checkpoint_prefix LOGS/model.ckpt-20000 --output_directory SAVED_MODEL
 ``` 
 
 Model is saved to `SAVED_MODEL/saved_model`
 
 ## Inference
 
-```
+```bash
 python inference/scripts/detect.py --frozen_graph=SAVED_MODEL/frozen_inference_graph.pb --input_dir=DATASETS/indian/train/images/
 ```
+
+## Model Serving
+
+Example:
+
+```
+docker run -t --rm -p 8500:8500 -p 8501:8501 -v \
+"/home/benjamintan/workspace/servedmodels/ssd_inception_v2_coco_2018_01_28/:/models/ssdv2" -e \
+MODEL_NAME=ssd_inception_v2_coco  tensorflow/serving:1.15.0
+```
+
+In `serving/rest_client.py`, set:
+
+```
+HOST = "localhost"
+PORT = "8501"
+MODEL_NAME = "ssd-inception-v2"
+```
+
+Execute the program. You should be able to observe the JSON output and resulting inference from `out.png`.
