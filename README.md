@@ -23,12 +23,10 @@ Type "help", "copyright", "credits" or "license" for more information.
 ### Install Tensorflow Object Detection API
 
 ```
-git clone https://github.com/tensorflow/models.git MODELS
 cd MODELS/research
 # Compile protos.
 protoc object_detection/protos/*.proto --python_out=.
 # Install TensorFlow Object Detection API.
-cp object_detection/packages/tf1/setup.py .
 python -m pip install .
 
 # Test the installation.
