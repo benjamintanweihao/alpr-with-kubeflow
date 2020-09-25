@@ -95,33 +95,42 @@ tar xvf DATASETS.tar.xz
 mkdir TFRECORDS
 ```
 
-### Preparing the Dataset
-
-#### Create `label_map.pbtxt`
-
-```
-item {
-    id: 1
-    name: 'license-plate'
-}
-```
-
 #### Create TFRecords
 
-```
-git clone https://github.com/RobertLucian/license-plate-dataset.git romanian-license-plate-dataset
-```
 
 ```
-alpr-with-kubeflow/dataprep/scripts$ python xml2csv.py -i ../../DATASETS/romanian-license-plate-dataset/dataset/train/annots/ -o ../../DATASETS/romanian-license-plate-dataset/dataset/train/annots/train_labels.csv
+python dataprep/scripts/xml2csv.py -i DATASETS/romanian/train/annotations/ -o DATASETS/romanian/train/annotations/train_labels.csv
+python dataprep/scripts/xml2csv.py -i DATASETS/romanian/test/annotations/ -o DATASETS/romanian/test/annotations/test_labels.csv
 
-alpr-with-kubeflow/dataprep/scripts$ python xml2csv.py -i ../../DATASETS/romanian-license-plate-dataset/dataset/valid/annots/ -o ../../DATASETS/romanian-license-plate-dataset/dataset/valid/annots/valid_labels.csv
+python dataprep/scripts/xml2csv.py -i DATASETS/indian/train/annotations/ -o DATASETS/indian/train/annotations/train_labels.csv
+python dataprep/scripts/xml2csv.py -i DATASETS/indian/test/annotations/ -o DATASETS/indian/test/annotations/test_labels.csv
 
+python dataprep/scripts/xml2csv.py -i DATASETS/voc/train/annotations/ -o DATASETS/voc/train/annotations/train_labels.csv
+python dataprep/scripts/xml2csv.py -i DATASETS/voc/test/annotations/ -o DATASETS/voc/test/annotations/test_labels.csv
 
-python csv2tfrecords.py --label=license-plate --csv_input=../../DATASETS/romanian-license-plate-dataset/dataset/train/annots/train_labels.csv  --output_path=../../DATASETS/romanian-license-plate-dataset/dataset/train/annots/train.record --img_path=../../DATASETS/romanian-license-plate-dataset/dataset/train/images/
+python dataprep/scripts/csv2tfrecords.py --split_name=train --tfrecord_name=romanian --label=license-plate --csv_input=DATASETS/romanian/train/annotations/train_labels.csv  --output_path=TFRECORDS --img_path=DATASETS/romanian/train/images/ 
 
-python csv2tfrecords.py --label=license-plate --csv_input=../../DATASETS/romanian-license-plate-dataset/dataset/valid/annots/valid_labels.csv  --output_path=../../DATASETS/romanian-license-plate-dataset/dataset/valid/annots/valid.record --img_path=../../DATASETS/romanian-license-plate-dataset/dataset/valid/images/
+python dataprep/scripts/csv2tfrecords.py --split_name=test --tfrecord_name=romanian --label=license-plate --csv_input=DATASETS/romanian/test/annotations/test_labels.csv  --output_path=TFRECORDS --img_path=DATASETS/romanian/test/images/ 
+
+python dataprep/scripts/csv2tfrecords.py --split_name=train --tfrecord_name=indian --label=license-plate --csv_input=DATASETS/indian/train/annotations/train_labels.csv  --output_path=TFRECORDS --img_path=DATASETS/indian/train/images/ 
+
+python dataprep/scripts/csv2tfrecords.py --split_name=test --tfrecord_name=indian --label=license-plate --csv_input=DATASETS/indian/test/annotations/test_labels.csv  --output_path=TFRECORDS --img_path=DATASETS/indian/test/images/ 
+
+python dataprep/scripts/csv2tfrecords.py --split_name=train --tfrecord_name=voc --label=license-plate --csv_input=DATASETS/voc/train/annotations/train_labels.csv  --output_path=TFRECORDS --img_path=DATASETS/voc/train/images/ 
+
+python dataprep/scripts/csv2tfrecords.py --split_name=test --tfrecord_name=voc --label=license-plate --csv_input=DATASETS/voc/test/annotations/test_labels.csv  --output_path=TFRECORDS --img_path=DATASETS/voc/test/images/ 
 ```
+
+## Running Training
+
+```
+wget -O weights.tar.xz https://www.dropbox.com/s/bmdxebtj1cfk9ig/weights.tar.xz?dl=1
+tar xvf weights.tar.xz
+```
+
+Currently the only model available is SSD Inception V2, though you are free to download your own from the Model Zoo.
+
+To configure training, make sure the following are set in `train/model_configs/ssd_inception_v2_coco.config`:
 
 
 ```
@@ -132,28 +141,14 @@ python csv2tfrecords.py --label=license-plate --csv_input=../../DATASETS/romania
 5.  num_steps is set to 20000 which is sufficient for our use case
 ```
 
-## Running Training
-
-```
-cd alpr-with-kubeflow/train/scripts
-```
-
-Download the models from the Model Zoo. Each model in the tar.gz file contains the `pipeline.config` file which we modify for our needs.
-
-Pick the model you want:
-
 ```bash
-python model_main.py --model_dir ../../LOGS/ --pipeline_config_path ../model_configs/ssd_inception_v2_coco.config
-```
-
-```bash
-python model_main.py --model_dir ../../LOGS/ --pipeline_config_path ../model_configs/ssd_mobilenet_v1_fpn_shared_box_predictor_640x640_coco14_sync_2018_07_03.config 
+python train/scripts/model_main.py --model_dir LOGS --pipeline_config_path train/model_configs/ssd_inception_v2_coco.config
 ```
 
 ### Observing via Tensorboard
 
 ```
-$ tensorboard --logdir=logs
+$ tensorboard --logdir=LOGS
 ```
 
 ## Export Model
