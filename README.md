@@ -90,13 +90,10 @@ Create a `DATASETS` folder under the root directory:
 
 ```
 mkdir DATASETS
+wget -O DATASETS.tar.xz https://www.dropbox.com/s/qtowh6tq57kd2ss/DATASETS.tar.xz?dl=1'
+tar xvf DATASETS.tar.xz
+mkdir TFRECORDS
 ```
-
-These are the datasets used:
-
-### Romanian License Plate Dataset
-
-git clone https://github.com/RobertLucian/license-plate-dataset DATASETS/romanian-license-plate-dataset
 
 ### Preparing the Dataset
 
