@@ -164,8 +164,10 @@ Model is saved to `SAVED_MODEL/saved_model`
 ## Inference
 
 ```bash
-python inference/scripts/detect.py --frozen_graph=SAVED_MODEL/frozen_inference_graph.pb --input_dir=DATASETS/indian/train/images/
+python inference/scripts/detect.py --frozen_graph=SAVED_MODEL/frozen_inference_graph.pb --input_dir=DATASETS/indian/test/images/
 ```
+
+You can find the results in the `inference/results` folder.
 
 ## Model Serving
 
