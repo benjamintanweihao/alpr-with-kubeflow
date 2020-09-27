@@ -124,8 +124,10 @@ python dataprep/scripts/csv2tfrecords.py --split_name=test --tfrecord_name=voc -
 ## Running Training
 
 ```
+cd train
 wget -O weights.tar.xz https://www.dropbox.com/s/bmdxebtj1cfk9ig/weights.tar.xz?dl=1
 tar xvf weights.tar.xz
+cd ..
 ```
 
 Currently the only model available is SSD Inception V2, though you are free to download your own from the Model Zoo.
