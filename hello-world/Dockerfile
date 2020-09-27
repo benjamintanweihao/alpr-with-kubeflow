@@ -26,6 +26,7 @@ ENV LC_ALL en_US.UTF-8
 RUN apt-get install -y --no-install-recommends \
     wget \
     git \
+    libgl1-mesa-glx \
     openssh-client && \
     rm -rf /var/lib/apt/lists/*
 
