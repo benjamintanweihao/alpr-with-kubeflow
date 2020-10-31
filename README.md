@@ -2,23 +2,41 @@
 
 ### via Conda
 
+
 ```
 conda create -n alpr -c conda-forge python=3.6 scipy==1.5.0  pandas==1.1.0 kfp==1.0.0 boto3==1.9.66 pip
 conda activate alpr
+```
+
+If you have an Nvidia GPU:
+
+```
 pip install opencv-python==4.3.0.38 tensorflow-gpu==1.15.3 kfserving==0.4.0
+```
+
+Otherwise:
+
+```
+pip install opencv-python==4.3.0.38 tensorflow==1.15.3 kfserving==0.4.0
 ```
 
 Test it out:
 
 ```
 python
-Python 3.6.10 |Anaconda, Inc.| (default, May  8 2020, 02:54:21) 
-[GCC 7.3.0] on linux
+```
+
+You should see:
+
+```
+Python 3.6.11 | packaged by conda-forge | (default, Aug  5 2020, 20:09:42) 
+[GCC 7.5.0] on linux
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import tensorflow
 >>> tensorflow.__version__
-'1.15.0'
+'1.15.3'
 ```
+
 
 ### Install Tensorflow Object Detection API
 
@@ -90,7 +108,7 @@ Create a `DATASETS` folder under the root directory:
 
 ```
 mkdir DATASETS
-wget -O DATASETS.tar.xz https://www.dropbox.com/s/qtowh6tq57kd2ss/DATASETS.tar.xz?dl=1'
+wget -O DATASETS.tar.xz https://www.dropbox.com/s/qtowh6tq57kd2ss/DATASETS.tar.xz?dl=1
 tar xvf DATASETS.tar.xz
 mkdir TFRECORDS
 ```

@@ -1,7 +1,7 @@
 import os
 
 import kfp
-from kfp import dsl, components
+from kfp import dsl
 from kfp.components import InputPath
 from kfp.dsl import PipelineVolume
 from kubernetes.client import V1EnvVar
