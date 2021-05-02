@@ -32,7 +32,7 @@ def main():
 
     s3 = boto3.client(
         "s3",
-        endpoint_url=f"http://{os.environ['MINIO_SERVICE_SERVICE_HOST']}:{os.environ['MINIO_SERVICE_SERVICE_PORT']}",
+        endpoint_url=f"http://minio-service.kubeflow:9000",
         aws_access_key_id="minio",
         aws_secret_access_key="minio123",
         config=Config(signature_version="s3v4"),
