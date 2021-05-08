@@ -18,16 +18,11 @@ def main():
                         "--model_name",
                         help="name of the model",
                         type=str)
-    parser.add_argument("-v",
-                        "--model_version",
-                        help="version of the model",
-                        type=int)
 
     args = parser.parse_args()
 
     model_dir = args.model_dir
     model_name = args.model_name
-    model_version = args.model_version
     export_bucket = args.export_bucket
 
     s3 = boto3.client(
@@ -58,7 +53,7 @@ def main():
             s3.upload_file(
                 local_path,
                 export_bucket,
-                f"{model_name}/{model_version}/{s3_path}",
+                f"{model_name}/{s3_path}",
                 ExtraArgs={"ACL": "public-read"},
             )
 
