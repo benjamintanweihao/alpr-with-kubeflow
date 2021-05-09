@@ -140,7 +140,7 @@ tar xvf weights.tar.xz
 cd ..
 ```
 
-Currently the only model available is SSD Inception V2, though you are free to download your own from the Model Zoo.
+Currently, the only model available is SSD Inception V2, though you are free to download your own from the Model Zoo.
 
 To configure training, make sure the following are set in `train/model_configs/ssd_inception_v2_coco.config`:
 

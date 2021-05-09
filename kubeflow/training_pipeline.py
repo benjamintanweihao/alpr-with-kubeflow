@@ -116,8 +116,7 @@ def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str, num_
                 'tar xvf weights.tar.xz',
                 f'export PYTHONPATH=$PYTHONPATH:{os.path.join(PROJECT_ROOT, "MODELS")}',
                 f'python train/scripts/model_main.py --model_dir {model_dir} --pipeline_config_path train/model_configs/{model_name}.config --num_train_steps={num_train_steps}',
-                f'echo {PROJECT_ROOT}/LOGS/{model_name} > /workspace/model_dir.txt'
-                ]
+                f'echo {PROJECT_ROOT}/LOGS/{model_name} > /workspace/model_dir.txt' ]
 
     for c in commands:
         print(c)
@@ -143,16 +142,13 @@ def export_saved_model_op(image: str, pvolume: PipelineVolume, model_name: str, 
     checkpoint_prefix = f'LOGS/{model_name}/model.ckpt-{num_train_steps}'
 
     commands = [
-        f'cd {PROJECT_ROOT}/MODELS/research',
-        'protoc object_detection/protos/*.proto --python_out=.',
-        'cp object_detection/packages/tf1/setup.py .',
-        'python -m pip install --user .',
-        'cd ../../',
         f'cd {PROJECT_ROOT}',
-        f'export PYTHONPATH=$PYTHONPATH:{os.path.join(PROJECT_ROOT, "MODELS")}',
         f'python MODELS/research/object_detection/export_inference_graph.py --input_type image_tensor '
         f'--pipeline_config_path train/model_configs/{model_name}.config '
         f'--trained_checkpoint_prefix {checkpoint_prefix} --output_directory SAVED_MODEL/{model_name}/{model_version}',
+        # The model server expects that the saved model is in a versioned folder: e.g. sklearn-iris/4/saved_model.pb
+        f'mv SAVED_MODEL/{model_name}/{model_version}/saved_model/saved_model.pb SAVED_MODEL/{model_name}/{model_version}/saved_model.pb',
+        f'rm -rf SAVED_MODEL/{model_name}/{model_version}/saved_model/',
         f'echo {PROJECT_ROOT}/SAVED_MODEL/{model_name} > /workspace/model_dir.txt'
     ]
 

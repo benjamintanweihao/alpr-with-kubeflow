@@ -1,50 +1,60 @@
 import kfp
 from kfp import dsl
-from kubernetes.client import V1EnvVar
+from kfp.dsl import PipelineVolume
 
 PROJECT_ROOT = '/workspace/alpr-with-kubeflow'
 
 
-def add_env_variables(op):
-    op.container.add_env_variable(V1EnvVar(name='AWS_ACCESS_KEY_ID', value="minio"))
-    op.container.add_env_variable(V1EnvVar(name='AWS_SECRET_ACCESS_KEY', value="minio123"))
-    op.container.add_env_variable(V1EnvVar(name='S3_USE_HTTPS', value="false"))
+def create_pipeline_volume_op(resource_name):
+    return dsl.VolumeOp(
+        name="create-pipeline-volume",
+        resource_name=resource_name,
+        modes=dsl.VOLUME_MODE_RWO,
+        size="10Gi",
+    )
+
+
+def git_clone_op(branch_or_sha: str, pvolume: PipelineVolume):
+    image = 'benjamintanweihao/alpr-vc'
+
+    commands = [
+        f"git clone https://github.com/benjamintanweihao/alpr-with-kubeflow.git {PROJECT_ROOT}",
+        f"cd {PROJECT_ROOT}",
+        f"git checkout {branch_or_sha}",
+    ]
+
+    for c in commands:
+        print(c)
+
+    op = dsl.ContainerOp(
+        name='git clone project',
+        image=image,
+        command=['sh'],
+        arguments=['-c', ' && '.join(commands)],
+        container_kwargs={'image_pull_policy': 'IfNotPresent'},
+        pvolumes={"/workspace": pvolume}
+    )
 
     return op
 
 
-# A couple of things needs to happen before this would work
-# 1. Create a namepace with `kfserving-inference-service` and
-#    with the `serving.kubeflow.org/inferenceservice=enabled` label.
-#    This namespace shouldn't have a `control-plane` level
-#
-# 2. Within this namespace, you would need to create two things:
-# a) A Secret that would contain the MinIO credentials
-# b) A ServiceAccount that points to this Secret.
-#
-# 3. Modify the InferenceService ConfigMap to include the
-#    tensorflow-1.15 and tensorflow-gpu-1.15.
-#
-# The Serving Op will then reference this ServiceAccount in order to
-# access the MinIO credentials.
+def serving_op(image: str, pvolume: PipelineVolume) -> object:
+    commands = [
+        f'cd {PROJECT_ROOT}',
+        f'python serving/kfs_deployer.py'
+    ]
 
-def serving_op(export_bucket: str, model_name: str, model_dns_prefix: str, model_version: str):
-    kfserving_op = kfp.components.load_component_from_url(
-        'https://raw.githubusercontent.com/kubeflow/pipelines/1.5.0/components/kubeflow/kfserving/component.yaml')
+    for c in commands:
+        print(c)
 
-    op = kfserving_op(
-        model_name=model_dns_prefix,  # this should be DNS friendly
-        model_uri=f"s3://{export_bucket}/{model_name}/1/{model_version}",
-        namespace='kubeflow',
-        framework="tensorflow",
-        service_account="sa",
-        min_replicas='1',
-        max_replicas='1',
-        watch_timeout='360',
-        autoscaling_target='1',
+    op = dsl.ContainerOp(
+        name='serve model',
+        image=image,
+        command=['sh'],
+        arguments=['-c', ' && '.join(commands)],
+        container_kwargs={'image_pull_policy': 'IfNotPresent'},
+        pvolumes={"/workspace": pvolume}
     )
-
-    op = add_env_variables(op)
 
     return op
 
@@ -54,16 +64,17 @@ def serving_op(export_bucket: str, model_name: str, model_dns_prefix: str, model
     description='This is a single component Pipeline for Serving'
 )
 def alpr_pipeline(
-        model_name: str = 'ssd_inception_v2_coco',
-        export_bucket: str = 'servedmodels',
-        model_dns_prefix: str = 'ssd-inception-v2',
-        model_version: str = '1',
-):
-    _ = serving_op(
-        export_bucket=export_bucket,
-        model_name=model_name,
-        model_dns_prefix=model_dns_prefix,
-        model_version=model_version)
+        image: str = "benjamintanweihao/alpr-kubeflow",
+        branch: str = 'master'):
+
+    resource_name = 'alpr-pipeline-pvc'
+
+    create_pipeline_volume = create_pipeline_volume_op(resource_name=resource_name)
+
+    git_clone = git_clone_op(branch_or_sha=branch,
+                             pvolume=create_pipeline_volume.volume)
+
+    _ = serving_op(image=image, pvolume=git_clone.pvolume)
 
 
 if __name__ == '__main__':
