@@ -3,7 +3,9 @@ import json
 import cv2
 import numpy as np
 
-image = cv2.imread("PATH-TO-IMAGE", 1)
+from constants import MODEL_NAME
+
+image = cv2.imread("/home/benjamintan/workspace/alpr-with-kubeflow/serving/beach.jpeg", 1)
 image_content = image.astype('uint8').tolist()
 
 instance = [{"inputs": image_content}]
@@ -11,22 +13,15 @@ data = json.dumps({"instances": instance, "signature_name": "serving_default"})
 
 headers = {"content-type": "application/json"}
 
-HOST = "10.x.x.x"
-PORT = "80"
-MODEL_NAME = "ssd-inception-v2"
+HOST = "localhost"
+PORT = "8080"
 
 THRESHOLD = 0.3
 
-# To test on tensorflow/serving:
-# docker run -t --rm -p 8500:8500 -p 8501:8501 -v \
-# "/home/benjamintan/workspace/servedmodels/ssd_inception_v2_coco_2018_01_28/:/models/ssdv2" -e \
-# MODEL_NAME=ssd_inception_v2_coco  tensorflow/serving:1.15.0
-#
-# HOST = "localhost"
-# PORT = "8501"
-# MODEL_NAME = "ssd-inception-v2"
+url = f"http://{HOST}:{PORT}/v1/models/{MODEL_NAME}/metadata"
+print(url)
 
-json_response = requests.get(f"http://{HOST}:{PORT}/v1/models/{MODEL_NAME}/metadata")
+json_response = requests.get(url)
 print(json_response.json())
 
 json_response = requests.post(f"http://{HOST}:{PORT}/v1/models/{MODEL_NAME}:predict", data=data, headers=headers)

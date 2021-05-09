@@ -2,6 +2,7 @@ import os
 
 import kfp
 from kfp import dsl
+from kfp.components import InputPath
 from kfp.dsl import PipelineVolume
 from kubernetes.client import V1EnvVar
 
@@ -137,6 +138,69 @@ def train_and_eval_op(image: str, pvolume: PipelineVolume, model_name: str, num_
     return op
 
 
+def export_saved_model_op(image: str, pvolume: PipelineVolume, model_name: str, model_version: str,
+                          num_train_steps: str):
+    checkpoint_prefix = f'LOGS/{model_name}/model.ckpt-{num_train_steps}'
+
+    commands = [
+        f'cd {PROJECT_ROOT}/MODELS/research',
+        'protoc object_detection/protos/*.proto --python_out=.',
+        'cp object_detection/packages/tf1/setup.py .',
+        'python -m pip install --user .',
+        'cd ../../',
+        f'cd {PROJECT_ROOT}',
+        f'export PYTHONPATH=$PYTHONPATH:{os.path.join(PROJECT_ROOT, "MODELS")}',
+        f'python MODELS/research/object_detection/export_inference_graph.py --input_type image_tensor '
+        f'--pipeline_config_path train/model_configs/{model_name}.config '
+        f'--trained_checkpoint_prefix {checkpoint_prefix} --output_directory SAVED_MODEL/{model_name}/{model_version}',
+        f'echo {PROJECT_ROOT}/SAVED_MODEL/{model_name} > /workspace/model_dir.txt'
+    ]
+
+    for c in commands:
+        print(c)
+
+    op = dsl.ContainerOp(
+        name='export savedmodel',
+        image=image,
+        command=['sh'],
+        arguments=['-c', ' && '.join(commands)],
+        container_kwargs={'image_pull_policy': 'IfNotPresent'},
+        pvolumes={"/workspace": pvolume},
+        file_outputs={'saved_model': f'{PROJECT_ROOT}/SAVED_MODEL',
+                      'model_dir': f'/workspace/model_dir.txt'}
+    )
+
+    return op
+
+
+def upload_to_s3_op(
+        image: str,
+        pvolume: PipelineVolume,
+        model_dir: InputPath(str),
+        export_bucket: str,
+        model_name: str):
+    commands = [
+        f'cd {PROJECT_ROOT}',
+        f'python export/upload_to_s3.py --model_dir={model_dir} '
+        f'--export_bucket={export_bucket} '
+        f'--model_name={model_name}'
+    ]
+
+    for c in commands:
+        print(c)
+
+    op = dsl.ContainerOp(
+        name='upload model to MinIO',
+        image=image,
+        command=['sh'],
+        arguments=['-c', ' && '.join(commands)],
+        container_kwargs={'image_pull_policy': 'IfNotPresent'},
+        pvolumes={"/workspace": pvolume}
+    )
+
+    return op
+
+
 @dsl.pipeline(
     name='ALPR Pipeline',
     description='This is the ALPR Pipeline that is meant to be executed on KubeFlow.'
@@ -145,7 +209,7 @@ def alpr_pipeline(
         image: str = "benjamintanweihao/alpr-kubeflow",
         branch: str = 'master',
         model_name: str = 'ssd_inception_v2_coco',
-        num_train_steps: str = '20000',
+        num_train_steps: str = '20',  # 20000 steps for full training
 ):
     resource_name = 'alpr-pipeline-pvc'
 
@@ -159,10 +223,22 @@ def alpr_pipeline(
         pvolume=git_clone.pvolume,
     )
 
-    _training_and_eval = train_and_eval_op(image=image,
-                                           pvolume=convert_to_tfrecords.pvolume,
-                                           model_name=model_name,
-                                           num_train_steps=num_train_steps)
+    training_and_eval = train_and_eval_op(image=image,
+                                          pvolume=convert_to_tfrecords.pvolume,
+                                          model_name=model_name,
+                                          num_train_steps=num_train_steps)
+
+    export_saved_model = export_saved_model_op(image=image,
+                                               pvolume=training_and_eval.pvolume,
+                                               model_name=model_name,
+                                               model_version='1',
+                                               num_train_steps=num_train_steps)
+
+    upload_to_s3 = upload_to_s3_op(image=image,
+                                   pvolume=export_saved_model.pvolume,
+                                   model_dir=export_saved_model.outputs['model_dir'],
+                                   export_bucket='servedmodels',
+                                   model_name=model_name)
 
 
 if __name__ == '__main__':

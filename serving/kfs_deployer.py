@@ -5,25 +5,30 @@ from kfserving import KFServingClient
 from kfserving import constants
 from kfserving import V1alpha2EndpointSpec
 from kfserving import V1alpha2PredictorSpec
-from kfserving import V1alpha2TensorflowSpec
+from kfserving import V1beta1TFServingSpec
 from kfserving import V1alpha2InferenceServiceSpec
 from kfserving import V1alpha2InferenceService
 from kubernetes.client import V1ResourceRequirements
 
 
-def create_inference_service(namespace: str, name: str, storage_uri: str, runtime_version: str,
+def create_inference_service(namespace: str,
+                             name: str,
+                             storage_uri: str,
+                             runtime_version: str,
                              service_account_name: str):
     api_version = constants.KFSERVING_GROUP + '/' + constants.KFSERVING_VERSION
     default_endpoint_spec = V1alpha2EndpointSpec(
         predictor=V1alpha2PredictorSpec(
             min_replicas=1,
             service_account_name=service_account_name,
-            tensorflow=V1alpha2TensorflowSpec(
+            tensorflow=V1beta1TFServingSpec(
                 runtime_version=runtime_version,
                 storage_uri=storage_uri,
                 resources=V1ResourceRequirements(
                     requests={'cpu': '100m', 'memory': '1Gi'},
-                    limits={'cpu': '100m', 'memory': '1Gi'}))))
+                    limits={'cpu': '100m', 'memory': '1Gi'}
+
+                ))))
 
     isvc = V1alpha2InferenceService(api_version=api_version,
                                     kind=constants.KFSERVING_KIND,
@@ -41,7 +46,7 @@ if __name__ == '__main__':
     parser.add_argument("--namespace",
                         help="namespace to deploy the inference service to",
                         type=str,
-                        default='kfserving-inference-service')
+                        default='kubeflow-user')
 
     parser.add_argument("--name",
                         help="name of inference service",

@@ -1,16 +1,15 @@
-import os
-
 import kfp
-from kfp import dsl, components
-from kfp.components import InputPath
-from kfp.dsl import PipelineVolume
+from kfp import dsl
 from kubernetes.client import V1EnvVar
 
 PROJECT_ROOT = '/workspace/alpr-with-kubeflow'
 
 
 def add_env_variables(op):
-    op.container.add_env_variable(V1EnvVar(name='TF_FORCE_GPU_ALLOW_GROWTH', value="true"))
+    op.container.add_env_variable(V1EnvVar(name='AWS_ACCESS_KEY_ID', value="minio"))
+    op.container.add_env_variable(V1EnvVar(name='AWS_SECRET_ACCESS_KEY', value="minio123"))
+    op.container.add_env_variable(V1EnvVar(name='S3_USE_HTTPS', value="false"))
+
     return op
 
 
@@ -29,20 +28,20 @@ def add_env_variables(op):
 # The Serving Op will then reference this ServiceAccount in order to
 # access the MinIO credentials.
 
-def serving_op(export_bucket: str, model_name: str, model_dns_prefix: str):
-    kfserving_op = components.load_component_from_url(
-        'https://raw.githubusercontent.com/kubeflow/pipelines/master/components/kubeflow/kfserving/component.yaml'
-    )
-
-    # TODO: Check how we can modify the minReplicas: 1
+def serving_op(export_bucket: str, model_name: str, model_dns_prefix: str, model_version: str):
+    kfserving_op = kfp.components.load_component_from_url(
+        'https://raw.githubusercontent.com/kubeflow/pipelines/1.5.0/components/kubeflow/kfserving/component.yaml')
 
     op = kfserving_op(
-        action="create",
-        default_model_uri=f"s3://{export_bucket}/{model_name}/1",
         model_name=model_dns_prefix,  # this should be DNS friendly
-        namespace='kfserving-inference-service',
+        model_uri=f"s3://{export_bucket}/{model_name}/1/{model_version}",
+        namespace='kubeflow',
         framework="tensorflow",
-        service_account="sa"
+        service_account="sa",
+        min_replicas='1',
+        max_replicas='1',
+        watch_timeout='360',
+        autoscaling_target='1',
     )
 
     op = add_env_variables(op)
@@ -57,10 +56,14 @@ def serving_op(export_bucket: str, model_name: str, model_dns_prefix: str):
 def alpr_pipeline(
         model_name: str = 'ssd_inception_v2_coco',
         export_bucket: str = 'servedmodels',
-        model_dns_prefix: str = 'ssd-inception-v2'):
-    serving_op(export_bucket=export_bucket,
-               model_name=model_name,
-               model_dns_prefix=model_dns_prefix)
+        model_dns_prefix: str = 'ssd-inception-v2',
+        model_version: str = '1',
+):
+    _ = serving_op(
+        export_bucket=export_bucket,
+        model_name=model_name,
+        model_dns_prefix=model_dns_prefix,
+        model_version=model_version)
 
 
 if __name__ == '__main__':
