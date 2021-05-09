@@ -1,3 +1,5 @@
+import os
+
 import requests
 import json
 import cv2
@@ -5,7 +7,8 @@ import numpy as np
 
 from constants import MODEL_NAME
 
-image = cv2.imread("/home/benjamintan/workspace/alpr-with-kubeflow/serving/beach.jpeg", 1)
+image_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__), 'beach.jpeg'))
+image = cv2.imread(image_path, 1)
 image_content = image.astype('uint8').tolist()
 
 instance = [{"inputs": image_content}]
@@ -13,7 +16,7 @@ data = json.dumps({"instances": instance, "signature_name": "serving_default"})
 
 headers = {"content-type": "application/json"}
 
-HOST = "localhost"
+HOST = "POD-ID-GOES-HERE"
 PORT = "8080"
 
 THRESHOLD = 0.3

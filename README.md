@@ -169,7 +169,8 @@ $ tensorboard --logdir=LOGS
 python MODELS/research/object_detection/export_inference_graph.py --input_type image_tensor --pipeline_config_path train/model_configs/ssd_inception_v2_coco.config --trained_checkpoint_prefix LOGS/model.ckpt-20000 --output_directory SAVED_MODEL
 ``` 
 
-Model is saved to `SAVED_MODEL/saved_model`
+Model is saved to `SAVED_MODEL/saved_model`.
+
 
 ## Inference
 
