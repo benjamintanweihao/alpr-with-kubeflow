@@ -1,9 +1,0 @@
-# DOCKER_BUILDKIT=1 docker build -t benjamintanweihao/alpr-vc env -f env/docker/Dockerfile.vc --build-arg user_id=`id -u`
-
-ARG user_id
-
-FROM alpine:3.7
-RUN addgroup -S -g 1000 dev && adduser -S -u 1000 -G dev dev
-RUN apk add --update build-base git git-lfs bash openssh
-USER dev
-ENV PATH $PATH:/home/dev/.local/bin/

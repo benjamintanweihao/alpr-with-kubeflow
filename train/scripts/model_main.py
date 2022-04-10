@@ -30,6 +30,7 @@ from google.protobuf import text_format
 
 from object_detection import model_lib
 from object_detection.protos import pipeline_pb2
+import os
 
 flags.DEFINE_string(
     'model_dir', None, 'Path to output model directory '
@@ -60,6 +61,13 @@ flags.DEFINE_integer(
                            'retries upon encountering tf.errors.InvalidArgumentError. If negative, '
                            'will always retry the evaluation.'
 )
+flags.DEFINE_string(
+    'datasets_dir', 'DATASETS', 'Path to directory containing the raw dataset. (Only needed for Kubeflow).')
+
+flags.DEFINE_string(
+    'tfrecords_dir', 'TFRECORDS', 'Path to directory containing the TFRecords. (Only needed for Kubeflow).')
+
+
 FLAGS = flags.FLAGS
 
 
@@ -70,16 +78,31 @@ def main(unused_argv):
 
     # NOTE: IF YOU WANT TO CHANGE THE CONFIG
 
-    # pipeline_config = pipeline_pb2.TrainEvalPipelineConfig()
-    # with tf.gfile.GFile(FLAGS.pipeline_config_path, "r") as f:
-    #     proto_str = f.read
-    #     text_format.Merge(proto_str, pipeline_config)
+    pipeline_config = pipeline_pb2.TrainEvalPipelineConfig()
+    with tf.gfile.GFile(FLAGS.pipeline_config_path, "r") as f:
+        proto_str = f.read()
+        text_format.Merge(proto_str, pipeline_config)
 
     # pipeline_config.train_config.num_steps = 20000
 
-    # config_text = text_format.MessageToString(pipeline_config)
-    # with tf.gfile.Open(FLAGS.pipeline_config_path, "wb") as f:
-    #     f.write(config_text)
+    ########################################################################################################
+    # NOTE:
+    #
+    # Here we need to override this because for Kubeflow pipelines because we make no assumptions as to
+    # where the datasets are stored since we are using InputPath()/OutputPath().
+    ########################################################################################################
+
+    pipeline_config.train_input_reader.label_map_path = os.path.join(FLAGS.datasets_dir, 'label_map.pbtxt')
+    pipeline_config.eval_input_reader[0].label_map_path = os.path.join(FLAGS.datasets_dir, 'label_map.pbtxt')
+
+    pipeline_config.train_input_reader.tf_record_input_reader.input_path[0] = os.path.join(FLAGS.tfrecords_dir,
+                                                                                        '*_train_*.tfrecord')
+    pipeline_config.eval_input_reader[0].tf_record_input_reader.input_path[0] = os.path.join(FLAGS.tfrecords_dir,
+                                                                                       '*_test_*.tfrecord')
+
+    config_text = text_format.MessageToString(pipeline_config)
+    with tf.gfile.Open(FLAGS.pipeline_config_path, "wb") as f:
+        f.write(config_text)
 
     train_and_eval_dict = model_lib.create_estimator_and_inputs(
         run_config=config,

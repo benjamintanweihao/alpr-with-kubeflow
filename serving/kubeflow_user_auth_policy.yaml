@@ -2,7 +2,7 @@ apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
   name: allowlist-by-paths
-  namespace: kubeflow-user
+  namespace: kubeflow-user-example-com
 spec:
   action: ALLOW
   rules:

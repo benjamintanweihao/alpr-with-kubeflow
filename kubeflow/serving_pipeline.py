@@ -1,29 +1,32 @@
 import kfp
+import kfp.components as comp
 from kfp import dsl
+from kfp.v2.components.experimental.base_component import BaseComponent
+from kfp.v2.components.experimental.pipeline_task import PipelineTask
 
-from kubeflow.components import create_pipeline_volume_op, git_clone_op, serving_op
+from serving.component import serving_op
+
+git_clone_op: BaseComponent = comp.load_component_from_url(
+    'https://raw.githubusercontent.com/kubeflow/pipelines/master/components/contrib/git/clone/component.yaml')
+
+image: str = "benjamintanweihao/alpr-kubeflow"
+serving_step: BaseComponent = serving_op(image=image)
 
 
 @dsl.pipeline(
-    name='Serving Pipeline',
-    description='This is a single component Pipeline for Serving'
+    name='ALPR Pipeline',
+    description='This is the ALPR Pipeline that is meant to be executed on KubeFlow.'
 )
-def alpr_pipeline(
-        image: str = "benjamintanweihao/alpr-kubeflow",
-        branch: str = 'master',
+def serving_pipeline(
         model_dns_prefix: str = 'ssd-inception-v2',
 ):
-    resource_name = 'alpr-pipeline-pvc'
+    git_clone_step: PipelineTask = git_clone_op('https://github.com/benjamintanweihao/alpr-with-kubeflow.git', '1.5')
 
-    create_pipeline_volume = create_pipeline_volume_op(resource_name=resource_name)
+    project_workspace = git_clone_step.output
 
-    git_clone = git_clone_op(branch_or_sha=branch,
-                             pvolume=create_pipeline_volume.volume)
-
-    _ = serving_op(image=image,
-                   model_dns_prefix=model_dns_prefix,
-                   pvolume=git_clone.pvolume)
+    _ = serving_step(project_workspace=project_workspace,
+                     model_dns_prefix=model_dns_prefix)
 
 
 if __name__ == '__main__':
-    kfp.compiler.Compiler().compile(alpr_pipeline, 'serving-pipeline.zip')
+    kfp.compiler.Compiler().compile(serving_pipeline, 'serving_pipeline.yaml')

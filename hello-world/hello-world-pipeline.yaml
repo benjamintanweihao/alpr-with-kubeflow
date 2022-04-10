@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: hello-world-pipeline-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.12, pipelines.kubeflow.org/pipeline_compilation_time: '2022-04-10T22:27:18.525304',
+    pipelines.kubeflow.org/pipeline_spec: '{"name": "Hello world pipeline"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.12}
+spec:
+  entrypoint: hello-world-pipeline
+  templates:
+  - name: hello-world
+    container:
+      args: []
+      command: [python3, mnist.py]
+      image: benjamintanweihao/hello-world:latest
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.12
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Hello
+          World", "implementation": {"container": {"command": ["python3", "mnist.py"],
+          "image": "benjamintanweihao/hello-world:latest"}}, "name": "Hello World"}',
+        pipelines.kubeflow.org/component_ref: '{"digest": "f705c6dc61354452cb0a93c09a711243f43c9baca50e7c183e841b44ebf105e4",
+          "url": "component.yaml"}'}
+  - name: hello-world-pipeline
+    dag:
+      tasks:
+      - {name: hello-world, template: hello-world}
+  arguments:
+    parameters: []
+  serviceAccountName: pipeline-runner

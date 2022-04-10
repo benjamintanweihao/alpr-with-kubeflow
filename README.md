@@ -4,12 +4,12 @@
 
 
 ```
-conda create -n alpr -c conda-forge python=3.6 scipy==1.5.0  pandas==1.1.0 kfp==1.4.0 boto3==1.9.66 pip
+conda create -n alpr -c conda-forge python=3.6 scipy==1.5.0  pandas==1.1.0 kfp==1.8.12 boto3==1.9.66 pip
 conda activate alpr
 ```
 
 ```
-pip install opencv-python==4.3.0.38 tensorflow==1.15.3 kfserving==0.5.1
+pip install opencv-python==4.3.0.38 tensorflow==1.15.3 kfserving==0.6.1
 ```
 
 Test it out:

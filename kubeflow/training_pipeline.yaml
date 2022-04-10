@@ -1,0 +1,214 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: alpr-pipeline-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.12, pipelines.kubeflow.org/pipeline_compilation_time: '2022-04-14T01:14:25.394284',
+    pipelines.kubeflow.org/pipeline_spec: '{"description": "This is the ALPR Pipeline
+      that is meant to be executed on KubeFlow.", "inputs": [{"default": "ssd_inception_v2_coco",
+      "name": "model_name", "optional": true, "type": "String"}, {"default": "1",
+      "name": "model_version", "optional": true, "type": "String"}, {"default": "1",
+      "name": "num_train_steps", "optional": true, "type": "String"}], "name": "ALPR
+      Pipeline"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.12}
+spec:
+  entrypoint: alpr-pipeline
+  templates:
+  - name: alpr-pipeline
+    inputs:
+      parameters:
+      - {name: model_name}
+      - {name: num_train_steps}
+    dag:
+      tasks:
+      - name: create-tfrecords
+        template: create-tfrecords
+        dependencies: [git-clone]
+        arguments:
+          artifacts:
+          - {name: git-clone-Repo-dir, from: '{{tasks.git-clone.outputs.artifacts.git-clone-Repo-dir}}'}
+      - name: export-savedmodel
+        template: export-savedmodel
+        dependencies: [git-clone, train-and-eval]
+        arguments:
+          parameters:
+          - {name: model_name, value: '{{inputs.parameters.model_name}}'}
+          - {name: num_train_steps, value: '{{inputs.parameters.num_train_steps}}'}
+          artifacts:
+          - {name: git-clone-Repo-dir, from: '{{tasks.git-clone.outputs.artifacts.git-clone-Repo-dir}}'}
+          - {name: train-and-eval-model_dir, from: '{{tasks.train-and-eval.outputs.artifacts.train-and-eval-model_dir}}'}
+      - {name: git-clone, template: git-clone}
+      - name: train-and-eval
+        template: train-and-eval
+        dependencies: [create-tfrecords, git-clone]
+        arguments:
+          parameters:
+          - {name: model_name, value: '{{inputs.parameters.model_name}}'}
+          - {name: num_train_steps, value: '{{inputs.parameters.num_train_steps}}'}
+          artifacts:
+          - {name: create-tfrecords-data_dir, from: '{{tasks.create-tfrecords.outputs.artifacts.create-tfrecords-data_dir}}'}
+          - {name: git-clone-Repo-dir, from: '{{tasks.git-clone.outputs.artifacts.git-clone-Repo-dir}}'}
+      - name: upload-savedmodel-to-s3
+        template: upload-savedmodel-to-s3
+        dependencies: [export-savedmodel, git-clone]
+        arguments:
+          parameters:
+          - {name: model_name, value: '{{inputs.parameters.model_name}}'}
+          artifacts:
+          - {name: export-savedmodel-saved_model_dir, from: '{{tasks.export-savedmodel.outputs.artifacts.export-savedmodel-saved_model_dir}}'}
+          - {name: git-clone-Repo-dir, from: '{{tasks.git-clone.outputs.artifacts.git-clone-Repo-dir}}'}
+  - name: create-tfrecords
+    container:
+      args: [/tmp/inputs/project_workspace/data, /tmp/outputs/data_dir/data]
+      command: [/bin/bash, -c, $0/scripts/dataprep.sh $0 $1]
+      image: benjamintanweihao/alpr-kubeflow
+    inputs:
+      artifacts:
+      - {name: git-clone-Repo-dir, path: /tmp/inputs/project_workspace/data}
+    outputs:
+      artifacts:
+      - {name: create-tfrecords-data_dir, path: /tmp/outputs/data_dir/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.12
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Create
+          TFRecords", "implementation": {"container": {"args": [{"inputPath": "project_workspace"},
+          {"outputPath": "data_dir"}], "command": ["/bin/bash", "-c", "$0/scripts/dataprep.sh
+          $0 $1"], "image": "benjamintanweihao/alpr-kubeflow"}}, "inputs": [{"name":
+          "project_workspace", "type": "Directory"}], "name": "Create TFRecords",
+          "outputs": [{"name": "data_dir", "type": "OutputPath"}]}', pipelines.kubeflow.org/component_ref: '{"digest":
+          "ee5cb845d49b086c75a1725fcdd4ecd0bf7b903b9d48b965072b310add530d33"}'}
+  - name: export-savedmodel
+    container:
+      args: [/tmp/inputs/project_workspace/data, '{{inputs.parameters.model_name}}',
+        '{{inputs.parameters.num_train_steps}}', /tmp/inputs/model_dir/data, /tmp/outputs/saved_model_dir/data,
+        '1']
+      command: [/bin/bash, -c, $0/scripts/export.sh $0 $1 $2 $3 $5 $4]
+      image: benjamintanweihao/alpr-kubeflow
+    inputs:
+      parameters:
+      - {name: model_name}
+      - {name: num_train_steps}
+      artifacts:
+      - {name: train-and-eval-model_dir, path: /tmp/inputs/model_dir/data}
+      - {name: git-clone-Repo-dir, path: /tmp/inputs/project_workspace/data}
+    outputs:
+      artifacts:
+      - {name: export-savedmodel-saved_model_dir, path: /tmp/outputs/saved_model_dir/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.12
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Export
+          SavedModel", "implementation": {"container": {"args": [{"inputPath": "project_workspace"},
+          {"inputValue": "model_name"}, {"inputValue": "num_train_steps"}, {"inputPath":
+          "model_dir"}, {"outputPath": "saved_model_dir"}, {"inputValue": "model_version"}],
+          "command": ["/bin/bash", "-c", "$0/scripts/export.sh $0 $1 $2 $3 $5 $4"],
+          "image": "benjamintanweihao/alpr-kubeflow"}}, "inputs": [{"name": "project_workspace",
+          "type": "Directory"}, {"name": "model_name", "type": "String"}, {"name":
+          "num_train_steps", "type": "String"}, {"default": "1", "name": "model_version",
+          "type": "String"}, {"name": "model_dir", "type": "OutputPath"}], "name":
+          "Export SavedModel", "outputs": [{"name": "saved_model_dir", "type": "OutputPath"}]}',
+        pipelines.kubeflow.org/component_ref: '{"digest": "73523adabbdc722e2c4475e040b9de093001651ae55a3a6c83a44317620d1d5c"}',
+        pipelines.kubeflow.org/arguments.parameters: '{"model_name": "{{inputs.parameters.model_name}}",
+          "model_version": "1", "num_train_steps": "{{inputs.parameters.num_train_steps}}"}'}
+  - name: git-clone
+    container:
+      args: []
+      command: [git, clone, --depth=1, --branch, '1.5', 'https://github.com/benjamintanweihao/alpr-with-kubeflow.git',
+        /tmp/outputs/Repo_dir/data]
+      image: alpine/git
+    outputs:
+      artifacts:
+      - {name: git-clone-Repo-dir, path: /tmp/outputs/Repo_dir/data}
+    metadata:
+      annotations:
+        author: Alexey Volkov <alexey.volkov@ark-kun.com>
+        canonical_location: https://raw.githubusercontent.com/Ark-kun/pipeline_components/master/components/git/clone/component.yaml
+        volatile_component: "true"
+        pipelines.kubeflow.org/component_spec: '{"description": "Creates a shallow
+          clone of the specified repo branch", "implementation": {"container": {"command":
+          ["git", "clone", "--depth=1", "--branch", {"inputValue": "Branch"}, {"inputValue":
+          "Repo URI"}, {"outputPath": "Repo dir"}], "image": "alpine/git"}}, "inputs":
+          [{"name": "Repo URI", "type": "URI"}, {"default": "master", "name": "Branch",
+          "type": "String"}], "metadata": {"annotations": {"author": "Alexey Volkov
+          <alexey.volkov@ark-kun.com>", "canonical_location": "https://raw.githubusercontent.com/Ark-kun/pipeline_components/master/components/git/clone/component.yaml",
+          "volatile_component": "true"}}, "name": "Git clone", "outputs": [{"name":
+          "Repo dir", "type": "Directory"}]}'
+        pipelines.kubeflow.org/component_ref: '{"digest": "2187e588f6a05550736861c5053e40c770c02716d67da9c6be5b96d169261809",
+          "url": "https://raw.githubusercontent.com/kubeflow/pipelines/master/components/contrib/git/clone/component.yaml"}'
+        pipelines.kubeflow.org/arguments.parameters: '{"Branch": "1.5", "Repo URI":
+          "https://github.com/benjamintanweihao/alpr-with-kubeflow.git"}'
+        pipelines.kubeflow.org/max_cache_staleness: P0D
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.12
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+  - name: train-and-eval
+    container:
+      args: [/tmp/inputs/project_workspace/data, '{{inputs.parameters.model_name}}',
+        '{{inputs.parameters.num_train_steps}}', /tmp/inputs/data_dir/data, /tmp/outputs/model_dir/data]
+      command: [/bin/bash, -c, $0/scripts/train.sh $0 $1 $2 $3 $4]
+      image: benjamintanweihao/alpr-kubeflow
+    inputs:
+      parameters:
+      - {name: model_name}
+      - {name: num_train_steps}
+      artifacts:
+      - {name: create-tfrecords-data_dir, path: /tmp/inputs/data_dir/data}
+      - {name: git-clone-Repo-dir, path: /tmp/inputs/project_workspace/data}
+    outputs:
+      artifacts:
+      - {name: train-and-eval-model_dir, path: /tmp/outputs/model_dir/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.12
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Train
+          and Eval", "implementation": {"container": {"args": [{"inputPath": "project_workspace"},
+          {"inputValue": "model_name"}, {"inputValue": "num_train_steps"}, {"inputPath":
+          "data_dir"}, {"outputPath": "model_dir"}], "command": ["/bin/bash", "-c",
+          "$0/scripts/train.sh $0 $1 $2 $3 $4"], "image": "benjamintanweihao/alpr-kubeflow"}},
+          "inputs": [{"name": "project_workspace", "type": "Directory"}, {"name":
+          "model_name", "type": "String"}, {"name": "num_train_steps", "type": "String"},
+          {"name": "data_dir", "type": "OutputPath"}], "name": "Train and Eval", "outputs":
+          [{"name": "model_dir", "type": "OutputPath"}]}', pipelines.kubeflow.org/component_ref: '{"digest":
+          "c6bde0d885dffb91f20f1c5420aac64ab8cc552bdf69df87111dfbf2e10ce7de"}', pipelines.kubeflow.org/arguments.parameters: '{"model_name":
+          "{{inputs.parameters.model_name}}", "num_train_steps": "{{inputs.parameters.num_train_steps}}"}'}
+  - name: upload-savedmodel-to-s3
+    container:
+      args: [/tmp/inputs/project_workspace/data, /tmp/inputs/model_dir/data, '{{inputs.parameters.model_name}}',
+        servedmodels]
+      command: [/bin/bash, -c, $0/scripts/upload.sh $0 $1 $2 $3]
+      image: benjamintanweihao/alpr-kubeflow
+    inputs:
+      parameters:
+      - {name: model_name}
+      artifacts:
+      - {name: export-savedmodel-saved_model_dir, path: /tmp/inputs/model_dir/data}
+      - {name: git-clone-Repo-dir, path: /tmp/inputs/project_workspace/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.12
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Upload
+          SavedModel S3", "implementation": {"container": {"args": [{"inputPath":
+          "project_workspace"}, {"inputPath": "model_dir"}, {"inputValue": "model_name"},
+          {"inputValue": "export_bucket"}], "command": ["/bin/bash", "-c", "$0/scripts/upload.sh
+          $0 $1 $2 $3"], "image": "benjamintanweihao/alpr-kubeflow"}}, "inputs": [{"name":
+          "project_workspace", "type": "Directory"}, {"name": "model_dir", "type":
+          "OutputPath"}, {"name": "model_name", "type": "String"}, {"default": "servedmodels",
+          "name": "export_bucket", "type": "String"}], "name": "Upload SavedModel
+          to S3"}', pipelines.kubeflow.org/component_ref: '{"digest": "9171f40d0fa7b60a327be22edad8ce3753e7ac42fea6e0998cf3ebdb33584d8e"}',
+        pipelines.kubeflow.org/arguments.parameters: '{"export_bucket": "servedmodels",
+          "model_name": "{{inputs.parameters.model_name}}"}'}
+  arguments:
+    parameters:
+    - {name: model_name, value: ssd_inception_v2_coco}
+    - {name: model_version, value: '1'}
+    - {name: num_train_steps, value: '1'}
+  serviceAccountName: pipeline-runner

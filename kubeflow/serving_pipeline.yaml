@@ -1,0 +1,87 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: alpr-pipeline-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.12, pipelines.kubeflow.org/pipeline_compilation_time: '2022-04-14T10:00:51.446279',
+    pipelines.kubeflow.org/pipeline_spec: '{"description": "This is the ALPR Pipeline
+      that is meant to be executed on KubeFlow.", "inputs": [{"default": "ssd-inception-v2",
+      "name": "model_dns_prefix", "optional": true, "type": "String"}], "name": "ALPR
+      Pipeline"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.12}
+spec:
+  entrypoint: alpr-pipeline
+  templates:
+  - name: alpr-pipeline
+    inputs:
+      parameters:
+      - {name: model_dns_prefix}
+    dag:
+      tasks:
+      - {name: git-clone, template: git-clone}
+      - name: serve-model
+        template: serve-model
+        dependencies: [git-clone]
+        arguments:
+          parameters:
+          - {name: model_dns_prefix, value: '{{inputs.parameters.model_dns_prefix}}'}
+          artifacts:
+          - {name: git-clone-Repo-dir, from: '{{tasks.git-clone.outputs.artifacts.git-clone-Repo-dir}}'}
+  - name: git-clone
+    container:
+      args: []
+      command: [git, clone, --depth=1, --branch, '1.5', 'https://github.com/benjamintanweihao/alpr-with-kubeflow.git',
+        /tmp/outputs/Repo_dir/data]
+      image: alpine/git
+    outputs:
+      artifacts:
+      - {name: git-clone-Repo-dir, path: /tmp/outputs/Repo_dir/data}
+    metadata:
+      annotations:
+        author: Alexey Volkov <alexey.volkov@ark-kun.com>
+        canonical_location: https://raw.githubusercontent.com/Ark-kun/pipeline_components/master/components/git/clone/component.yaml
+        volatile_component: "true"
+        pipelines.kubeflow.org/component_spec: '{"description": "Creates a shallow
+          clone of the specified repo branch", "implementation": {"container": {"command":
+          ["git", "clone", "--depth=1", "--branch", {"inputValue": "Branch"}, {"inputValue":
+          "Repo URI"}, {"outputPath": "Repo dir"}], "image": "alpine/git"}}, "inputs":
+          [{"name": "Repo URI", "type": "URI"}, {"default": "master", "name": "Branch",
+          "type": "String"}], "metadata": {"annotations": {"author": "Alexey Volkov
+          <alexey.volkov@ark-kun.com>", "canonical_location": "https://raw.githubusercontent.com/Ark-kun/pipeline_components/master/components/git/clone/component.yaml",
+          "volatile_component": "true"}}, "name": "Git clone", "outputs": [{"name":
+          "Repo dir", "type": "Directory"}]}'
+        pipelines.kubeflow.org/component_ref: '{"digest": "2187e588f6a05550736861c5053e40c770c02716d67da9c6be5b96d169261809",
+          "url": "https://raw.githubusercontent.com/kubeflow/pipelines/master/components/contrib/git/clone/component.yaml"}'
+        pipelines.kubeflow.org/arguments.parameters: '{"Branch": "1.5", "Repo URI":
+          "https://github.com/benjamintanweihao/alpr-with-kubeflow.git"}'
+        pipelines.kubeflow.org/max_cache_staleness: P0D
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.12
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+  - name: serve-model
+    container:
+      args: [/tmp/inputs/project_workspace/data, '{{inputs.parameters.model_dns_prefix}}']
+      command: [/bin/bash, -c, $0/scripts/serve.sh $0 $1]
+      image: benjamintanweihao/alpr-kubeflow
+    inputs:
+      parameters:
+      - {name: model_dns_prefix}
+      artifacts:
+      - {name: git-clone-Repo-dir, path: /tmp/inputs/project_workspace/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.12
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Serve
+          Model", "implementation": {"container": {"args": [{"inputPath": "project_workspace"},
+          {"inputValue": "model_dns_prefix"}], "command": ["/bin/bash", "-c", "$0/scripts/serve.sh
+          $0 $1"], "image": "benjamintanweihao/alpr-kubeflow"}}, "inputs": [{"name":
+          "project_workspace", "type": "Directory"}, {"name": "model_dns_prefix",
+          "type": "String"}], "name": "Serve Model"}', pipelines.kubeflow.org/component_ref: '{"digest":
+          "7ce356cf224230bd28b1d5a90aad66657698c1f0f3456133d8d6e701a731760d"}', pipelines.kubeflow.org/arguments.parameters: '{"model_dns_prefix":
+          "{{inputs.parameters.model_dns_prefix}}"}'}
+  arguments:
+    parameters:
+    - {name: model_dns_prefix, value: ssd-inception-v2}
+  serviceAccountName: pipeline-runner

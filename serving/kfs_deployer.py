@@ -46,7 +46,7 @@ if __name__ == '__main__':
     parser.add_argument("--namespace",
                         help="namespace to deploy the inference service to",
                         type=str,
-                        default='kubeflow-user')
+                        default='kubeflow-user-example-com')
 
     parser.add_argument("--name",
                         help="name of inference service",
@@ -54,8 +54,8 @@ if __name__ == '__main__':
                         type=str)
 
     parser.add_argument("--storage_uri",
-                        help="storage_uri of model. e.g. s3://servedmodels/ssd_inception_v2_coco/",
-                        default="s3://servedmodels/ssd_inception_v2_coco/",
+                        help="storage_uri of model. e.g. s3://servedmodels/ssd_inception_v2_coco/SAVED_MODEL/ssd_inception_v2_coco",
+                        default="s3://servedmodels/ssd_inception_v2_coco/SAVED_MODEL/ssd_inception_v2_coco",
                         type=str)
 
     parser.add_argument("--runtime_version",
